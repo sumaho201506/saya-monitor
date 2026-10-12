@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>サヤ取りチャートモニター v12</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f4f6f9;--card:#fff;--tx:#1b2430;--mut:#6b7684;--bd:#dde2e9;--pri:#1f6feb;--grid:#e6eaf0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f141b;--card:#171e28;--tx:#e6ebf2;--mut:#8b97a7;--bd:#2a3442;--pri:#4c8dff;--grid:#232c38}}
+:root[data-theme="dark"]{--bg:#0f141b;--card:#171e28;--tx:#e6ebf2;--mut:#8b97a7;--bd:#2a3442;--pri:#4c8dff;--grid:#232c38}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 "Hiragino Sans","Yu Gothic",Meiryo,system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--bd);background:var(--card)}
+h1{font-size:17px;margin:0 auto 0 0}
+main{max-width:1100px;margin:0 auto;padding:14px;display:grid;gap:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px}
+.card h2{font-size:14px;margin:0 0 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+button,select,input[type=text]{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:5px 10px}
+button{cursor:pointer}button:hover{border-color:var(--pri)}
+button.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+button.on{background:var(--pri);border-color:var(--pri);color:#fff}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sp{margin-left:auto}
+.ds{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--bd)}
+.ds input[type=text]{width:150px}
+.ds input[type=number]{width:90px;font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:5px 6px}
+.ds label{font-size:12px;color:var(--mut)}
+.ds small{color:var(--mut)}
+.drop{border:2px dashed var(--bd);border-radius:8px;padding:12px;text-align:center;color:var(--mut);margin-bottom:6px}
+.drop.over{border-color:var(--pri);color:var(--pri)}
+.cv{position:relative;height:340px}
+table.sim{width:100%;border-collapse:collapse;text-align:center;font-variant-numeric:tabular-nums}
+table.sim th,table.sim td{border:1px solid var(--bd);padding:4px 6px}
+table.sim th{background:var(--bg);font-weight:600;font-size:12px}
+table.sim input[type=text],table.sim input[type=number]{width:96px;text-align:center}
+table.sim input[type=number]{width:70px}
+table.sim select{max-width:120px}
+.pos{color:#2da44e;font-weight:600}.neg{color:#e5484d;font-weight:600}
+.px{display:block;color:var(--mut);font-size:11px}
+#nav{width:100%;height:70px;display:block;margin-top:6px;touch-action:none;cursor:ew-resize;border:1px solid var(--bd);border-radius:6px}
+.rb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.rb button{padding:3px 9px;font-size:12px}
+table.sim .amtc input[type=number]{width:96px}
+table.sim .px input[type=number]{width:78px;font-size:11px;padding:1px 4px}
+table.sim input.ovr{border-color:#f5a524;background:rgba(245,165,36,.14)}
+.hint{color:var(--mut);font-size:12px}
+.stat{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin-top:6px}
+.stat b{font-variant-numeric:tabular-nums}
+
+.tb{width:24px;height:24px;padding:0;line-height:1;font-weight:700}
+.outer{background:var(--card);border:2px solid var(--pri);border-radius:12px;padding:10px}
+.outer>.sh{display:flex;align-items:center;gap:8px;font-size:16px;margin-bottom:10px}
+.inner{display:grid;gap:14px}
+.outer>.sh{flex-wrap:wrap}
+.ttl{font-weight:600;font-size:14px}
+.hrate{font-size:13px;white-space:nowrap}
+.note{margin-left:auto;width:min(300px,45%)}
+.sec.closed>.sb{display:none}
+.sec.closed>.sh{margin-bottom:0}
+.outer>.sh{display:grid;grid-template-columns:24px 56px minmax(0,1fr) 210px minmax(0,1.6fr) 24px;align-items:center;gap:8px}
+.outer>.sh .ttl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.outer>.sh .note{width:100%;margin:0;min-width:0}
+@media(max-width:760px){.outer>.sh{grid-template-columns:24px auto minmax(0,1fr) 24px}.outer>.sh .hrate,.outer>.sh .note{grid-column:1/-1;order:2}.outer>.sh .dl{order:1}}
+</style>
+</head>
+<body>
+<header><h1>📈 サヤ取りチャートモニター <small style="color:var(--mut)">v12</small></h1><input id="feedUrl" type="text" placeholder="価格シートの公開CSV URL（Googleスプレッドシート）" style="width:260px" onchange="saveSoon();loadFeedUrl()"><button class="pri" onclick="loadFeedUrl(true)">今すぐ更新</button><button onclick="pickFeed()" title="CSVまたはJSONファイルから読み込み">ファイル読込</button><span id="feedst" class="hint"></span><input type="file" id="ff" accept=".json,.csv,.txt" hidden><input type="file" id="fb" accept=".json" hidden><button style="margin-left:auto" onclick="saveBackup()">バックアップ保存</button><button onclick="pickBackup()">バックアップ読込</button><button onclick="pasteBackup()">貼付読込</button><button onclick="resetAll()">保存データ消去</button></header>
+<main><div id="sets" style="display:grid;gap:14px"></div><div><button class="pri" onclick="addSet()">＋ Set追加</button></div><div class="card sec" id="help"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>説明</h2><div class="sb hint" style="line-height:1.9">
+列：日付 / 始値 / 高値 / 安値 / 終値 / 出来高 / 調整後終値（ヘッダー行あり可）<br>
+単位：1口 ／ 日付は 20261006 形式 ／ 終値は元データの終値（加減値・倍率は適用外）<br>
+返済行の「最新価格」にチェックすると、返済日と終値を銘柄の最新価格で自動入力します。最新価格は、価格シートのCSV（URL欄またはファイル読込）があればそれを優先し、1時間ごとに自動更新します。無い場合は取り込んだデータの最終行を使います。CSVの形式は「銘柄コード,価格」（例: 1345,1694）を1行ずつ、3列目に日付（20261012）があれば日付も使います。<br>
+金額と終値は手入力で変更でき（枠がオレンジ＝手入力値）、変更すると建玉金額差・損益・総損益・総損益率に反映されます。空欄にすると自動計算に戻ります。<br>
+金額＝(終値−1)×数量（売）／(終値＋1)×数量（買）。<br>
+総損益＝各取引の損益の合計。<br>
+総損益率＝総損益÷(総建玉金額×率)を年率換算（÷使用日数×365。使用日数＝最初の建玉日〜最後の返済日）。<br>
+建玉金額差＝1行目の銘柄の建玉金額に対する各銘柄の差(%)。<br>
+率の初期値は34%で、上の「率」欄で変更できます。<br>
+指定日にデータが無い場合は直前の営業日の終値を使用。</div></div></main>
+<script>
+const App={};
+function makeSet(N,L,ST){
+const root=document.getElementById("set"+N);
+root.innerHTML=`
+  <section class="card sec"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>データ取込 <button onclick="App[${N}].pickFiles()">Import</button><input type="file" id="f" accept=".xlsx,.xls,.csv" multiple hidden></h2><div class="sb">
+    <div id="panel">
+      <div class="drop" id="drop">Excel / CSV をここにドロップ（複数可・1ファイル＝1ライン）</div>
+      <div id="list"></div>
+    </div>
+  </div></section>
+
+  <section class="card sec"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button><span class="cn">チャート ${L[0]}（価格）</span>
+      <span class="sp row">
+        <select id="price"><option value="adj">調整後終値</option><option value="close">終値</option></select>
+        <span class="row" id="pb"></span>
+      </span></h2><div class="sb">
+    <div class="cv"><canvas id="cA"></canvas></div>
+    <canvas id="nav"></canvas>
+    <div class="rb"><span id="rtxt" class="hint"></span><span class="sp row">
+      <button data-r="1">1ヶ月</button><button data-r="3">3ヶ月</button><button data-r="6">6ヶ月</button><button data-r="12">1年</button><button data-r="36">3年</button><button data-r="0">全期間</button>
+      <button id="zi">＋ 拡大</button><button id="zo">－ 縮小</button></span></div>
+    <div class="hint">下のミニチャートで両端のハンドルをドラッグして期間を調整、中央をドラッグで移動、グラフ上のマウスホイールでもズームできます（チャートBにも同じ期間が適用されます）。</div>
+  </div></section>
+
+  <section class="card sec"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>シミュレーション <button onclick="App[${N}].addTrade()">＋ 行追加</button>
+      <label class="row" style="font-weight:400;gap:4px">率 <input type="number" id="mrate" value="34" min="0" step="any" style="width:70px" onchange="App[${N}].renderSim()">%</label></h2><div class="sb">
+    <div style="overflow-x:auto"><table class="sim"><thead><tr><th>銘柄</th><th>取引</th><th>期日</th><th>売買</th><th>数量</th><th>建玉金額差</th><th>金額</th><th>損益</th><th>総損益</th><th>総損益率<br>（年率）</th><th></th></tr></thead><tbody id="sim"></tbody></table></div>
+    <div class="stat" id="simtot"></div>
+  </div></section>
+
+  <section class="card sec"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button><span class="cn">チャート ${L[1]}（サヤ差）</span></h2><div class="sb">
+    <div class="row">
+      買い <select id="buy"></select>
+      売り <select id="sell"></select>
+      <select id="mode"><option value="diff">差（買−売）</option><option value="ratio">比率（買÷売）</option></select>
+    </div>
+    <div class="cv"><canvas id="cB"></canvas></div>
+    <div class="stat" id="stat"></div>
+    <div class="hint">各ラインの調整値＝元値×倍率＋加減値（チャートA・Bの両方に反映）。<br>買い建て玉と売り建て玉の価格差。サヤが拡大すれば買い方有利、縮小すれば売り方有利。</div>
+  </div></section>
+`;
+
+const COLORS=['#1f6feb','#e5484d','#2da44e','#f5a524','#8e4ec6','#0ea5a5','#d6409f','#6b7684'];
+let sets=[],period='D',cA,cB,pendingName=null,pendingTarget=null;
+const $=id=>root.querySelector('#'+id);
+const fi=$('f');
+
+function pad(n){return String(n).padStart(2,'0')}
+function parseDate(v){
+  if(v instanceof Date&&!isNaN(v))return `${v.getFullYear()}-${pad(v.getMonth()+1)}-${pad(v.getDate())}`;
+  if(typeof v==='number'&&v>20000&&v<80000){const d=new Date(Math.round((v-25569)*864e5));return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`}
+  if(typeof v==='string'){const m=v.trim().match(/^(\d{4})[\/\-.年](\d{1,2})[\/\-.月](\d{1,2})/);if(m)return `${m[1]}-${pad(m[2])}-${pad(m[3])}`}
+  return null;
+}
+function num(v){if(typeof v==='number')return v;const n=parseFloat(String(v).replace(/,/g,''));return isNaN(n)?null:n}
+
+function parseRows(rows){
+  const out=[];
+  for(const r of rows){
+    const d=parseDate(r[0]);if(!d)continue;
+    const o={d,open:num(r[1]),high:num(r[2]),low:num(r[3]),close:num(r[4]),vol:num(r[5]),adj:num(r[6])};
+    if(o.adj==null)o.adj=o.close;
+    if(o.close==null)o.close=o.adj;
+    if(o.adj==null)continue;
+    out.push(o);
+  }
+  return out;
+}
+function merge(ds,rows){
+  const m=new Map(ds.rows.map(r=>[r.d,r]));
+  rows.forEach(r=>m.set(r.d,r));
+  ds.rows=[...m.values()].sort((a,b)=>a.d<b.d?-1:1);
+}
+function readFile(file){
+  return new Promise(res=>{
+    const fr=new FileReader();
+    fr.onload=e=>{
+      try{
+        const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+        let rows=[];
+        wb.SheetNames.forEach(n=>{rows=rows.concat(XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null}))});
+        res(parseRows(rows));
+      }catch(err){alert(file.name+' を読み込めません');res([])}
+    };
+    fr.readAsArrayBuffer(file);
+  });
+}
+async function handleFiles(files){
+  for(const f of files){
+    const rows=await readFile(f);
+    if(!rows.length){alert(f.name+': 有効なデータ行がありません');continue}
+    if(pendingTarget!=null){const ds=sets.find(s=>s.id===pendingTarget);if(ds)merge(ds,rows)}
+    else{
+      const ds={id:Date.now()+Math.random(),name:pendingName||f.name.replace(/\.[^.]+$/,''),color:COLORS[sets.length%COLORS.length],show:true,add:0,mul:1,rows:[]};
+      merge(ds,rows);sets.push(ds);
+    }
+    pendingName=null;
+  }
+  pendingTarget=null;fi.value='';refresh();
+}
+fi.onchange=()=>handleFiles([...fi.files]);
+function pickFiles(){pendingTarget=null;pendingName=null;fi.click()}
+function addLine(){const n=prompt('新しいラインの名前（例: 日経225 / TOPIX）',`ライン${sets.length+1}`);if(n===null)return;pendingName=n||null;pendingTarget=null;fi.click()}
+function appendTo(id){pendingTarget=id;fi.click()}
+const drop=$('drop');
+['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',ev=>{pendingTarget=null;handleFiles([...ev.dataTransfer.files])});
+
+function exportXlsx(){
+  if(!sets.length){alert('データがありません');return}
+  const wb=XLSX.utils.book_new();
+  sets.forEach((s,i)=>{
+    const aoa=[['日付','始値','高値','安値','終値','出来高','調整後終値'],...s.rows.map(r=>[r.d,r.open,r.high,r.low,r.close,r.vol,r.adj])];
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),(s.name.replace(/[\\\/?*\[\]:]/g,'_')||'Sheet'+i).slice(0,28)+(i?'_'+i:''));
+  });
+  saveFile('saya-data.xlsx',XLSX.write(wb,{bookType:'xlsx',type:'array'}));
+}
+
+function key(d){return period==='Y'?d.slice(0,4):period==='M'?d.slice(0,7):d}
+function series(s){ // last value in each period
+  const f=$('price').value,m=new Map();
+  s.rows.forEach(r=>{const v=r[f];if(v!=null)m.set(key(r.d),v*s.mul+s.add)});
+  return m;
+}
+
+function list(){
+  $('list').innerHTML=sets.map(s=>`<div class="ds">
+    <input type="checkbox" ${s.show?'checked':''} onchange="App[${N}].upd(${s.id},'show',this.checked)">
+    <input type="color" value="${s.color}" onchange="App[${N}].upd(${s.id},'color',this.value)">
+    <input type="text" value="${s.name.replace(/"/g,'&quot;')}" onchange="App[${N}].upd(${s.id},'name',this.value)">
+    <small>${s.rows.length}行 ${s.rows[0].d} 〜 ${s.rows[s.rows.length-1].d}</small>
+    <label>加減値 <input type="number" step="any" value="${s.add}" onchange="App[${N}].adj(${s.id},'add',this.value)"></label>
+    <label>倍率 <input type="number" step="any" value="${s.mul}" onchange="App[${N}].adj(${s.id},'mul',this.value)"></label>
+    <button onclick="App[${N}].appendTo(${s.id})">データ追加</button>
+    <button onclick="App[${N}].del(${s.id})">削除</button></div>`).join('')||'<small class="hint">データ未取込</small>';
+  const opts=sets.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  [['buy',0],['sell',1]].forEach(([id,i])=>{const el=$(id),cur=el.value;el.innerHTML=opts;
+    el.value=sets.some(s=>String(s.id)===cur)?cur:(sets[i]?sets[i].id:'')});
+}
+function upd(id,k,v){sets.find(s=>s.id===id)[k]=v;refresh(k==='name')}
+function adj(id,k,v){let n=parseFloat(v);if(isNaN(n))n=k==='mul'?1:0;sets.find(s=>s.id===id)[k]=n;refresh()}
+function del(id){sets=sets.filter(s=>s.id!==id);refresh()}
+
+function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+function opts(){return{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},
+  plugins:{legend:{labels:{color:css('--tx')}}},
+  scales:{x:{ticks:{color:css('--mut'),maxTicksLimit:10},grid:{color:css('--grid')}},y:{ticks:{color:css('--mut')},grid:{color:css('--grid')}}},
+  elements:{point:{radius:0,hoverRadius:4},line:{borderWidth:1.8}}}}
+
+function drawA(){
+  const vis=sets.filter(s=>s.show),maps=vis.map(series);
+  const labels=fl([...new Set(maps.flatMap(m=>[...m.keys()]))]).sort();
+  const data={labels,datasets:vis.map((s,i)=>({label:s.name,borderColor:s.color,backgroundColor:s.color,spanGaps:true,tension:0,data:labels.map(l=>maps[i].has(l)?maps[i].get(l):null)}))};
+  if(cA)cA.destroy();cA=new Chart($('cA'),{type:'line',data,options:opts()});
+}
+function drawB(){
+  const b=sets.find(s=>String(s.id)===$('buy').value),sl=sets.find(s=>String(s.id)===$('sell').value);
+  let labels=[],vals=[],txt='ライン2つ以上を取り込むと表示されます';
+  if(b&&sl&&b!==sl){
+    const mb=series(b),ms=series(sl),ratio=$('mode').value==='ratio';
+    labels=fl([...mb.keys()].filter(k=>ms.has(k))).sort();
+    vals=labels.map(k=>ratio?mb.get(k)/ms.get(k):mb.get(k)-ms.get(k));
+    if(vals.length){const last=vals[vals.length-1],mx=Math.max(...vals),mn=Math.min(...vals),av=vals.reduce((a,c)=>a+c,0)/vals.length,f=x=>x.toLocaleString('ja-JP',{maximumFractionDigits:ratio?4:2});
+      txt=`<span>最新 <b>${f(last)}</b></span><span>平均 <b>${f(av)}</b></span><span>最大 <b>${f(mx)}</b></span><span>最小 <b>${f(mn)}</b></span><span>前回比 <b>${vals.length>1?f(last-vals[vals.length-2]):'-'}</b></span>`}
+    else txt='共通の日付がありません'
+  }
+  $('stat').innerHTML=txt;
+  const o=opts();o.plugins.legend.display=true;
+  const data={labels,datasets:[{label:`サヤ（${b?b.name:''} 買 / ${sl?sl.name:''} 売）`,data:vals,borderColor:'#f5a524',backgroundColor:'rgba(245,165,36,.15)',fill:true,tension:0}]};
+  if(cB)cB.destroy();cB=new Chart($('cB'),{type:'line',data,options:o});
+}
+let trades=[];
+function addTrade(){trades.push({sid:null,od:'',side:'売',oq:1,cd:'',cq:''});renderSim()}
+function delTrade(i){trades.splice(i,1);renderSim()}
+function setT(i,k,v){const t=trades[i];
+  if(k==='sid'){t.sid=(sets.find(x=>String(x.id)===v)||{}).id;t.oC=t.oA=t.cC=t.cA=''}
+  else if(['oq','cq','oA','cA','oC','cC'].includes(k)){const n=parseFloat(v);t[k]=v===''||isNaN(n)?'':n;
+    if(k==='oq'||k==='oC')t.oA='';if(k==='cq'||k==='cC')t.cA=''}
+  else{t[k]=v;if(k==='live')t.cC=t.cA='';if(k==='od')t.oC=t.oA='';if(k==='cd')t.cC=t.cA='';if(k==='side')t.oA=t.cA=''}
+  renderSim()}
+function d8(v){const m=String(v).trim().match(/^(\d{4})\D?(\d{1,2})\D?(\d{1,2})$/);return m?`${m[1]}-${pad(m[2])}-${pad(m[3])}`:null}
+function px(ds,d){if(!ds||!d)return null;let r=null;for(const x of ds.rows){if(x.d<=d&&x.close!=null)r=x;else if(x.d>d)break}return r}
+function amt(side,c,q){return(side==='売'?c-1:c+1)*q}
+const fm=n=>n.toLocaleString('ja-JP',{maximumFractionDigits:2});
+function renderSim(){
+  if(!trades.length)trades.push({sid:null,od:'',side:'売',oq:1,cd:'',cq:''});
+  let tot=0,n=0,base=0,dmin=null,dmax=null;
+  const has=v=>v!==''&&v!=null;
+  const livePx=ds=>{if(!ds)return null;const last=ds.rows[ds.rows.length-1],code=(ds.name.match(/\d{4}[A-Z]?/)||[])[0],f=FEED[ds.name]||FEED[code]||FEED[code+'.T'];let r=last?{d:last.d,close:last.close}:null;
+    if(f&&d8(f.date)&&f.close!=null&&(!r||d8(f.date)>=r.d))r={d:d8(f.date),close:+f.close};return r};
+  const leg=(t,L)=>{const ds=sets.find(x=>x.id===t.sid)||sets[0],d=t[L+'d'],side=L==='o'?t.side:(t.side==='売'?'買':'売'),
+    q=L==='o'?t.oq:(t.cq===''?t.oq:t.cq),lp=(L==='c'&&t.live)?livePx(ds):null,r=lp?{d:lp.d,close:lp.close}:px(ds,d8(d)),cv=t[L+'C'],av=t[L+'A'];
+    const close=has(cv)?cv:(r?r.close:null);let a=null;
+    if(has(av))a=av;else if(close!=null&&q>0)a=amt(side,close,q);
+    return{r,d,d8:lp?lp.d:d8(d),close,a,mc:has(cv),ma:has(av)}};
+  const cell=(i,L,g)=>`<td class="amtc"><input type="number" step="any" class="${g.ma?'ovr':''}" placeholder="金額" value="${g.a!=null?Math.round(g.a*100)/100:''}" onchange="App[${N}].setT(${i},'${L}A',this.value)"><span class="px">終値 <input type="number" step="any" class="${g.mc?'ovr':''}" placeholder="終値" value="${g.close!=null?g.close:''}" onchange="App[${N}].setT(${i},'${L}C',this.value)">${g.r&&g.r.d!==d8(g.d)&&!g.mc?'（'+g.r.d+'）':''}${!g.r&&!g.mc&&g.d?' データなし':''}</span></td>`;
+  const oa0=leg(trades[0],'o').a;
+  const html=trades.map((t,i)=>{
+    const ds=sets.find(x=>x.id===t.sid)||sets[0];
+    const cs=t.side==='売'?'買':'売',cq=t.cq===''?t.oq:t.cq;
+    const lo=leg(t,'o'),lc=leg(t,'c'),oa=lo.a,ca=lc.a;
+    let pl=null;
+    if(oa!=null&&ca!=null){pl=t.side==='売'?oa-ca:ca-oa;tot+=pl;base+=oa;n++;const a1=d8(t.od),a2=lc.d8;if(a1&&(!dmin||a1<dmin))dmin=a1;if(a2&&(!dmax||a2>dmax))dmax=a2}
+    const note=(r,d)=>r?`<span class="px">終値 ${fm(r.close)}${r.d!==d8(d)?'（'+r.d+'）':''}</span>`:(d?'<span class="px">データなし</span>':'');
+    const sel=sets.map(x=>`<option value="${x.id}" ${ds&&x.id===ds.id?'selected':''}>${x.name}</option>`).join('');
+    const gap=oa!=null&&oa0!=null?(i===0?'0%':((oa/oa0-1)*100).toFixed(1)+'%'):'-';
+    const cls=pl==null?'':pl>=0?'pos':'neg';
+    return `<tr><td rowspan="2"><select onchange="App[${N}].setT(${i},'sid',this.value)">${sel}</select></td>
+      <td>建玉</td><td><input type="text" placeholder="20261001" value="${t.od}" onchange="App[${N}].setT(${i},'od',this.value)"></td>
+      <td><select onchange="App[${N}].setT(${i},'side',this.value)"><option ${t.side==='売'?'selected':''}>売</option><option ${t.side==='買'?'selected':''}>買</option></select></td>
+      <td><input type="number" min="0" step="1" value="${t.oq}" onchange="App[${N}].setT(${i},'oq',this.value)"></td>
+      <td rowspan="2">${gap}</td>
+      ${cell(i,'o',lo)}
+      <td rowspan="2" class="${cls}">${pl!=null?fm(pl):'-'}</td>${i===0?'@@TOT@@':''}
+      <td rowspan="2"><button onclick="App[${N}].delTrade(${i})">削除</button></td></tr>
+      <tr><td>返済<label class="px"><input type="checkbox" ${t.live?'checked':''} onchange="App[${N}].setT(${i},'live',this.checked)">最新価格</label></td><td><input type="text" placeholder="20261006" value="${t.live&&lc.d8?lc.d8.replace(/-/g,''):t.cd}" ${t.live?'disabled':''} onchange="App[${N}].setT(${i},'cd',this.value)"></td>
+      <td>${cs}</td><td><input type="number" min="0" step="1" value="${cq}" onchange="App[${N}].setT(${i},'cq',this.value)"></td>
+      ${cell(i,'c',lc)}</tr>`}).join('');
+  const k=parseFloat($('mrate').value),den=base*(isNaN(k)?0:k)/100,r=den>0?tot/den:null;
+  const rs=trades.length*2,cl=tot>=0?'pos':'neg';
+  const days=dmin&&dmax?Math.round((ts(dmax)-ts(dmin))/DAY):0,ann=r!=null&&days>0?r/days*365:null;
+  $('sim').innerHTML=html.replace('@@TOT@@',n?`<td rowspan="${rs}" class="${cl}">${fm(tot)}</td><td rowspan="${rs}" class="${cl}">${ann!=null?(ann*100).toFixed(1)+'%':'-'}<span class="px">${r!=null?(r*100).toFixed(2)+'%':'-'} ÷ ${days}日 × 365</span></td>`:`<td rowspan="${rs}">-</td><td rowspan="${rs}">-</td>`);
+  $('simtot').innerHTML=n?`<span>総建玉金額 <b>${fm(base)}</b></span><span>分母（総建玉金額×率） <b>${fm(den)}</b></span><span>使用日数 <b>${days}日</b></span><span>計算済 <b>${n}</b> 件</span>`:'';
+  const wrap=document.querySelector(`[data-n="${N}"]`);
+  if(wrap){const nm=trades.map(t=>(sets.find(x=>x.id===t.sid)||sets[0]||{}).name).filter(Boolean);
+    wrap.querySelector('.ttl').textContent=nm.length?nm.join(' vs '):'銘柄未設定';wrap.querySelector('.ttl').title=nm.join(' vs ');
+    const hr=wrap.querySelector('.hrate');hr.textContent=ann!=null?`総損益率（年率） ${(ann*100).toFixed(1)}%`:'';hr.className='hrate '+(ann!=null&&ann<0?'neg':'pos')}
+  saveSoon();
+}
+
+/* ===== 期間選択・ズーム ===== */
+const DAY=864e5,MINW=3*DAY;let rng=null,nav=$('nav'),dragM=null,raf=0;
+const ts=d=>Date.parse(d+'T00:00:00Z');
+const kts=k=>ts(k.length===4?k+'-01-01':k.length===7?k+'-01':k);
+function dom(){let a=Infinity,b=-Infinity;sets.filter(x=>x.show&&x.rows.length).forEach(x=>{a=Math.min(a,ts(x.rows[0].d));b=Math.max(b,ts(x.rows[x.rows.length-1].d))});return a<b?[a,b]:null}
+function view(){const D=dom();if(!D)return null;let a=rng?rng.a:D[0],b=rng?rng.b:D[1];
+  a=Math.max(D[0],a);b=Math.min(D[1],b);if(b-a<MINW){const m=(a+b)/2;a=Math.max(D[0],m-MINW/2);b=Math.min(D[1],a+MINW)}return[a,b]}
+function fl(labels){const V=view();if(!V||!rng)return labels;const pad=period==='Y'?366*DAY:period==='M'?31*DAY:0;
+  return labels.filter(l=>{const t=kts(l);return t>=V[0]-pad&&t<=V[1]})}
+function setRange(a,b){const D=dom();if(!D)return;const w=Math.max(MINW,b-a);
+  if(w>=D[1]-D[0]){rng=null}else{a=Math.min(Math.max(D[0],a),D[1]-w);rng={a,b:a+w}}
+  saveSoon();if(!raf)raf=requestAnimationFrame(()=>{raf=0;drawNav();drawA();drawB()})}
+const f10=t=>{const d=new Date(t);return`${d.getUTCFullYear()}/${d.getUTCMonth()+1}/${d.getUTCDate()}`};
+function drawNav(){
+  const D=dom(),dpr=window.devicePixelRatio||1,W=nav.clientWidth,H=nav.clientHeight;nav.width=W*dpr;nav.height=H*dpr;
+  const g=nav.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  if(!D){$('rtxt').textContent='';return}
+  const f=$('price').value,X=t=>(t-D[0])/(D[1]-D[0])*W;
+  sets.filter(x=>x.show).forEach(x=>{const v=x.rows.map(r=>r[f]*x.mul+x.add);const mn=Math.min(...v),mx=Math.max(...v)||1,sp=(mx-mn)||1;
+    g.beginPath();g.strokeStyle=x.color;g.globalAlpha=.8;g.lineWidth=1;
+    x.rows.forEach((r,i)=>{const px=X(ts(r.d)),py=H-4-(v[i]-mn)/sp*(H-8);i?g.lineTo(px,py):g.moveTo(px,py)});g.stroke();g.globalAlpha=1});
+  const V=view(),xa=X(V[0]),xb=X(V[1]);
+  g.fillStyle='rgba(128,128,128,.28)';g.fillRect(0,0,xa,H);g.fillRect(xb,0,W-xb,H);
+  g.strokeStyle=css('--pri');g.lineWidth=1.5;g.strokeRect(xa,.75,xb-xa,H-1.5);
+  g.fillStyle=css('--pri');[xa,xb].forEach(x=>{g.beginPath();g.roundRect(x-4,H/2-11,8,22,3);g.fill()});
+  $('rtxt').textContent=`表示期間：${f10(V[0])} 〜 ${f10(V[1])}`;
+}
+function navT(e){const D=dom(),r=nav.getBoundingClientRect();return D[0]+Math.min(1,Math.max(0,(e.clientX-r.left)/r.width))*(D[1]-D[0])}
+nav.addEventListener('pointerdown',e=>{const D=dom();if(!D)return;const V=view(),r=nav.getBoundingClientRect(),W=r.width,x=e.clientX-r.left,
+  xa=(V[0]-D[0])/(D[1]-D[0])*W,xb=(V[1]-D[0])/(D[1]-D[0])*W,t=navT(e);
+  dragM=Math.abs(x-xa)<9?{m:'l'}:Math.abs(x-xb)<9?{m:'r'}:(x>xa&&x<xb)?{m:'m',off:t-V[0]}:{m:'n',t0:t};
+  nav.setPointerCapture(e.pointerId)});
+nav.addEventListener('pointermove',e=>{if(!dragM||!dom())return;const V=view(),t=navT(e);
+  if(dragM.m==='l')setRange(Math.min(t,V[1]-MINW),V[1]);
+  else if(dragM.m==='r')setRange(V[0],Math.max(t,V[0]+MINW));
+  else if(dragM.m==='m')setRange(t-dragM.off,t-dragM.off+(V[1]-V[0]));
+  else setRange(Math.min(t,dragM.t0),Math.max(t,dragM.t0));});
+['pointerup','pointercancel'].forEach(ev=>nav.addEventListener(ev,()=>dragM=null));
+function zoom(f,fr){const D=dom();if(!D)return;const V=view(),c=V[0]+(V[1]-V[0])*(fr==null?.5:fr),w=(V[1]-V[0])*f;
+  setRange(c-w*(fr==null?.5:fr),c-w*(fr==null?.5:fr)+w)}
+$('zi').onclick=()=>zoom(.6);$('zo').onclick=()=>zoom(1.6);
+root.querySelector('.rb').addEventListener('click',e=>{const m=e.target.dataset.r;if(m==null)return;const D=dom();if(!D)return;
+  if(+m===0){rng=null;setRange(D[0],D[1]);return}
+  const b=D[1],d=new Date(b);d.setUTCMonth(d.getUTCMonth()-(+m));setRange(d.getTime(),b)});
+['cA','cB'].forEach(id=>$(id).addEventListener('wheel',e=>{if(!dom())return;e.preventDefault();
+  const r=e.target.getBoundingClientRect(),fr=Math.min(1,Math.max(0,(e.clientX-r.left-45)/(r.width-55)));zoom(e.deltaY<0?.8:1.25,fr)},{passive:false}));
+window.addEventListener('resize',drawNav);
+function refresh(){list();drawA();renderSim();drawB();drawNav();saveSoon()}
+
+$('pb').innerHTML=[['D','日足'],['M','月足'],['Y','年足']].map(([k,t])=>`<button data-k="${k}" class="${k==='D'?'on':''}">${t}</button>`).join('');
+$('pb').onclick=e=>{const k=e.target.dataset.k;if(!k)return;period=k;[...$('pb').children].forEach(b=>b.classList.toggle('on',b.dataset.k===k));refresh()};
+['price','buy','sell','mode'].forEach(id=>$(id).onchange=refresh);
+
+function sample(){
+  const mk=(name,base,vol)=>{let p=base,d=new Date(2022,0,3),rows=[];
+    for(let i=0;i<900;i++){d.setDate(d.getDate()+1);if(d.getDay()%6===0)continue;
+      const o=p;p=p*(1+(Math.random()-.48)*vol);rows.push({d:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,open:o,high:Math.max(o,p),low:Math.min(o,p),close:p,vol:1e6,adj:p})}
+    sets.push({id:Date.now()+Math.random(),name,color:COLORS[sets.length%COLORS.length],show:true,add:0,mul:1,rows})};
+  mk('サンプルA',28000,.012);mk('サンプルB',27000,.011);refresh();
+}
+refresh();
+
+function getState(){return{sets,period,price:$('price').value,buy:$('buy').value,sell:$('sell').value,mode:$('mode').value,mrate:$('mrate').value,trades,rng}}
+function setState(st){if(!st)return;
+  sets=st.sets||[];period=st.period||'D';trades=st.trades||[];rng=st.rng||null;
+  $('price').value=st.price||'adj';$('mode').value=st.mode||'diff';if(st.mrate!=null)$('mrate').value=st.mrate;
+  [...$('pb').children].forEach(b=>b.classList.toggle('on',b.dataset.k===period));
+  list();if(st.buy)$('buy').value=st.buy;if(st.sell)$('sell').value=st.sell;refresh()}
+setState(ST);
+return {getState,addLine,pickFiles,exportXlsx,sample,appendTo,upd,del,adj,addTrade,delTrade,setT,renderSim,refresh};}
+
+let ready=false,tmr=0,FEED={},FEEDAT='',nextN=1;
+const $$=id=>document.getElementById(id);
+function modal(msg,txt,edit,label,fn){const o=document.createElement('div');o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;display:flex;align-items:center;justify-content:center;padding:16px';
+  o.innerHTML='<div class="card" style="max-width:640px;width:100%"><div class="msg" style="margin-bottom:6px"></div><textarea style="width:100%;height:240px;font:12px monospace;background:var(--bg);color:var(--tx)"></textarea><div class="row" style="margin-top:8px"><button class="pri act"></button><button class="cl">閉じる</button></div></div>';
+  document.body.appendChild(o);const ta=o.querySelector('textarea');o.querySelector('.msg').textContent=msg;ta.value=txt||'';ta.readOnly=!edit;ta.focus();if(!edit)ta.select();
+  const b=o.querySelector('.act');b.textContent=label||'コピー';
+  b.onclick=()=>{if(fn)fn(ta.value);else{ta.select();try{navigator.clipboard.writeText(ta.value)}catch(e){document.execCommand('copy')}}};
+  o.querySelector('.cl').onclick=()=>o.remove()}
+function pasteBackup(){modal('バックアップの内容を貼り付けてください。','',true,'読込',async v=>{try{const o=JSON.parse(v);if(!o.sets&&!o.list)throw 0;ready=false;await dbPut(o);location.reload()}catch(x){alert('バックアップを読み込めません')}})}
+async function saveFile(name,data){const d=window.claude&&await claude.use('downloads');
+  if(!d){if(typeof data==='string')modal('「'+name+'」の内容です。コピーして、メモ帳などに貼り付け、「'+name+'」として保存してください。',data,false);
+    else alert(window.claude?'ダウンロードが許可されていません。ページのPermissionsメニューで許可してから再読み込みしてください。':'公開ページとして開いてください（チャット内のプレビューでは保存できません）。');return}
+  try{await d.save({filename:name,data})}catch(e){if(!e||e.code!=='declined')alert('保存できません: '+((e&&(e.message||e.code))||''))}}
+const jst8=()=>new Date(Date.now()+9*36e5).toISOString().slice(0,10).replace(/-/g,'');
+function applyFeed(o,src){const m={};
+  if(typeof o==='string')o.split(/\r?\n/).forEach(l=>{const c=(l.match(/"[^"]*"|[^,]+/g)||[]).map(x=>x.replace(/"/g,'').trim());
+      const v=parseFloat((c[1]||'').replace(/,/g,''));if(c[0]&&!isNaN(v))m[c[0]]={date:c[2]||jst8(),close:v}});
+  else if(Array.isArray(o))o.forEach(x=>{if(x&&x.name!=null)m[x.name]=x});
+  else if(o&&typeof o==='object')Object.keys(o).forEach(k=>{if(o[k]&&typeof o[k]==='object')m[k]=o[k]});
+  FEED=m;FEEDAT=new Date().toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',hour12:false});$$('feedst').textContent='最終更新 '+FEEDAT+'（JST）';
+  Object.values(App).forEach(a=>a.refresh());saveSoon()}
+async function loadFeedUrl(manual){const u=$$('feedUrl').value.trim();if(!u){if(manual)$$('feedst').textContent='URLを入力してください';return}
+  try{const r=await fetch(u+(u.includes('?')?'&':'?')+'t='+Date.now(),{cache:'no-store'});if(!r.ok)throw 0;const t=await r.text();let o;try{o=JSON.parse(t)}catch(e){o=t}
+    applyFeed(o,'URL');if(!Object.keys(FEED).length)$$('feedst').textContent='価格を読み取れませんでした（形式を確認）'}
+  catch(e){$$('feedst').textContent='URLから取得できません（claude.ai上では外部通信が制限される場合があります。ファイル読込をお使いください）'}}
+function pickFeed(){$$('ff').click()}
+$$('ff').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const t=await f.text();let o;try{o=JSON.parse(t)}catch(x){o=t}applyFeed(o,'ファイル')}catch(x){alert('読み込めません')}e.target.value=''};
+function saveBackup(){saveFile('saya-backup.json',JSON.stringify(collect()))}
+function pickBackup(){$$('fb').click()}
+$$('fb').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const o=JSON.parse(await f.text());if(!o.sets&&!o.list)throw 0;ready=false;await dbPut(o);location.reload()}catch(x){alert('バックアップを読み込めません')}e.target.value=''};
+const idb=()=>new Promise((res,rej)=>{try{const r=indexedDB.open('saya_monitor',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}});
+async function dbGet(){try{const d=await idb();return await new Promise(res=>{const q=d.transaction('kv').objectStore('kv').get('state');q.onsuccess=()=>res(q.result);q.onerror=()=>res(null)})}catch(e){return null}}
+async function dbPut(v){try{const d=await idb();d.transaction('kv','readwrite').objectStore('kv').put(v,'state')}catch(e){}}
+function colName(i){let r='';i++;while(i>0){const m=(i-1)%26;r=String.fromCharCode(65+m)+r;i=Math.floor((i-1)/26)}return r}
+const letters=k=>[colName(2*k),colName(2*k+1)];
+function collect(){return{v:2,feed:FEED,feedAt:FEEDAT,feedUrl:$$('feedUrl').value,helpClosed:$$('help').classList.contains('closed'),
+  list:[...document.querySelectorAll('.outer')].map(w=>({n:+w.dataset.n,state:App[w.dataset.n].getState(),note:w.querySelector('.note').value,closed:[w,...w.querySelectorAll('.sec')].map(x=>x.classList.contains('closed'))}))}}
+function flush(){if(ready)dbPut(collect())}
+function saveSoon(){if(!ready)return;clearTimeout(tmr);tmr=setTimeout(flush,500)}
+async function resetAll(){if(confirm('保存されたデータをすべて消去して初期化しますか？')){ready=false;await dbPut(null);location.reload()}}
+function tg(b){const w=b.closest('.sec'),c=w.classList.toggle('closed');b.textContent=c?'+':'−';const nw=b.closest('[data-n]');if(!c&&nw){const a=App[nw.dataset.n];a&&a.refresh()}saveSoon()}
+function renumber(){document.querySelectorAll('.outer').forEach((w,k)=>{const L=letters(k),c=w.querySelectorAll('.cn');w.querySelector('.snum').textContent='Set '+(k+1);
+  if(c[0])c[0].textContent='チャート '+L[0]+'（価格）';if(c[1])c[1].textContent='チャート '+L[1]+'（サヤ差）'})}
+function mkSet(n,st,note,closed){const k=document.querySelectorAll('.outer').length;
+  document.getElementById('sets').insertAdjacentHTML('beforeend',`<div class="outer sec" data-n="${n}"><div class="sh"><button class="tb" onclick="tg(this)">−</button><b class="snum">Set ${k+1}</b><span class="ttl"></span><span class="hrate"></span><input type="text" class="note" placeholder="メモ（自由記入）" oninput="saveSoon()"><button class="tb dl" title="このSetを削除" onclick="delSet(this)">✕</button></div><div class="sb"><div class="inner" id="set${n}"></div></div></div>`);
+  const w=document.querySelector(`.outer[data-n="${n}"]`);w.querySelector('.note').value=note||'';
+  App[n]=makeSet(n,letters(k),st);
+  [w,...w.querySelectorAll('.sec')].forEach((x,j)=>{if(closed&&closed[j]){x.classList.add('closed');const b=x.querySelector(':scope>.sh>.tb');if(b)b.textContent='+'}})}
+function addSet(){mkSet(nextN++,null,'',null);renumber();saveSoon()}
+function delSet(b){const w=b.closest('.outer');if(!confirm('このSetを削除しますか？（取り込んだデータも消えます）'))return;delete App[w.dataset.n];w.remove();renumber();saveSoon()}
+async function init(){
+  const st=await dbGet();let list=[{n:1}];
+  if(st){FEED=st.feed||{};FEEDAT=st.feedAt||'';$$('feedUrl').value=st.feedUrl||'';
+    list=st.list||(st.sets||[]).map((x,i)=>({n:i+1,state:x,note:(st.notes||[])[i],closed:(st.closed||[])[i]}));
+    if(st.helpClosed){$$('help').classList.add('closed');$$('help').querySelector('.tb').textContent='+'}}
+  if(!$$('feedUrl').value&&/^https?:$/.test(location.protocol)&&!/claude/.test(location.host))$$('feedUrl').value='prices.json';
+  if(FEEDAT)$$('feedst').textContent='最終更新 '+FEEDAT+'（JST）';
+  nextN=Math.max(0,...list.map(x=>x.n))+1;
+  list.forEach(x=>mkSet(x.n,x.state,x.note,x.closed));renumber();
+  ready=true;if($$('feedUrl').value)loadFeedUrl();setInterval(()=>{if($$('feedUrl').value)loadFeedUrl()},3600000);
+  addEventListener('visibilitychange',()=>{if(document.hidden)flush()});addEventListener('pagehide',flush);
+}
+init();
+</script>
+</body>
+</html>
