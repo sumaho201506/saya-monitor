@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>サヤ取りチャートモニター v12</title>
+<title>サヤ取りチャートモニター v13</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -47,6 +47,13 @@ table.sim select{max-width:120px}
 table.sim .amtc input[type=number]{width:96px}
 table.sim .px input[type=number]{width:78px;font-size:11px;padding:1px 4px}
 table.sim input.ovr{border-color:#f5a524;background:rgba(245,165,36,.14)}
+.ed{margin:6px 0 10px;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg)}
+.edwrap{max-height:320px;overflow:auto;margin-top:8px}
+table.edt{width:100%;border-collapse:collapse;text-align:center;font-variant-numeric:tabular-nums}
+table.edt th,table.edt td{border:1px solid var(--bd);padding:2px 4px}
+table.edt th{background:var(--card);position:sticky;top:0;font-size:12px}
+table.edt input{width:86px;font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:4px;padding:2px 4px;text-align:right}
+table.edt input.dt{width:104px;text-align:center}
 .hint{color:var(--mut);font-size:12px}
 .stat{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin-top:6px}
 .stat b{font-variant-numeric:tabular-nums}
@@ -68,7 +75,7 @@ table.sim input.ovr{border-color:#f5a524;background:rgba(245,165,36,.14)}
 </style>
 </head>
 <body>
-<header><h1>📈 サヤ取りチャートモニター <small style="color:var(--mut)">v12</small></h1><input id="feedUrl" type="text" placeholder="価格シートの公開CSV URL（Googleスプレッドシート）" style="width:260px" onchange="saveSoon();loadFeedUrl()"><button class="pri" onclick="loadFeedUrl(true)">今すぐ更新</button><button onclick="pickFeed()" title="CSVまたはJSONファイルから読み込み">ファイル読込</button><span id="feedst" class="hint"></span><input type="file" id="ff" accept=".json,.csv,.txt" hidden><input type="file" id="fb" accept=".json" hidden><button style="margin-left:auto" onclick="saveBackup()">バックアップ保存</button><button onclick="pickBackup()">バックアップ読込</button><button onclick="pasteBackup()">貼付読込</button><button onclick="resetAll()">保存データ消去</button></header>
+<header><h1>📈 サヤ取りチャートモニター <small style="color:var(--mut)">v13</small></h1><input id="feedUrl" type="text" placeholder="価格シートの公開CSV URL（Googleスプレッドシート）" style="width:260px" onchange="saveSoon();loadFeedUrl()"><button class="pri" onclick="loadFeedUrl(true)">今すぐ更新</button><button onclick="pickFeed()" title="CSVまたはJSONファイルから読み込み">ファイル読込</button><span id="feedst" class="hint"></span><input type="file" id="ff" accept=".json,.csv,.txt" hidden><input type="file" id="fb" accept=".json" hidden><button style="margin-left:auto" onclick="saveBackup()">バックアップ保存</button><button onclick="pickBackup()">バックアップ読込</button><button onclick="pasteBackup()">貼付読込</button><button onclick="resetAll()">保存データ消去</button></header>
 <main><div id="sets" style="display:grid;gap:14px"></div><div><button class="pri" onclick="addSet()">＋ Set追加</button></div><div class="card sec" id="help"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>説明</h2><div class="sb hint" style="line-height:1.9">
 列：日付 / 始値 / 高値 / 安値 / 終値 / 出来高 / 調整後終値（ヘッダー行あり可）<br>
 単位：1口 ／ 日付は 20261006 形式 ／ 終値は元データの終値（加減値・倍率は適用外）<br>
@@ -79,7 +86,8 @@ table.sim input.ovr{border-color:#f5a524;background:rgba(245,165,36,.14)}
 総損益率＝総損益÷(総建玉金額×率)を年率換算（÷使用日数×365。使用日数＝最初の建玉日〜最後の返済日）。<br>
 建玉金額差＝1行目の銘柄の建玉金額に対する各銘柄の差(%)。<br>
 率の初期値は34%で、上の「率」欄で変更できます。<br>
-指定日にデータが無い場合は直前の営業日の終値を使用。</div></div></main>
+指定日にデータが無い場合は直前の営業日の終値を使用。<br>
+データ編集：取込パネルの各ラインの「データ編集」を押すと、取り込んだデータを日付ごとに書き換えたり、日付と終値を追加／削除できます（チャート・シミュレーションに即反映）。</div></div></main>
 <script>
 const App={};
 function makeSet(N,L,ST){
@@ -208,19 +216,51 @@ function series(s){ // last value in each period
 }
 
 function list(){
-  $('list').innerHTML=sets.map(s=>`<div class="ds">
+  $('list').innerHTML=sets.map(s=>`<div class="dsw"><div class="ds">
     <input type="checkbox" ${s.show?'checked':''} onchange="App[${N}].upd(${s.id},'show',this.checked)">
     <input type="color" value="${s.color}" onchange="App[${N}].upd(${s.id},'color',this.value)">
     <input type="text" value="${s.name.replace(/"/g,'&quot;')}" onchange="App[${N}].upd(${s.id},'name',this.value)">
-    <small>${s.rows.length}行 ${s.rows[0].d} 〜 ${s.rows[s.rows.length-1].d}</small>
+    <small id="sm${s.id}">${sumTxt(s)}</small>
     <label>加減値 <input type="number" step="any" value="${s.add}" onchange="App[${N}].adj(${s.id},'add',this.value)"></label>
     <label>倍率 <input type="number" step="any" value="${s.mul}" onchange="App[${N}].adj(${s.id},'mul',this.value)"></label>
     <button onclick="App[${N}].appendTo(${s.id})">データ追加</button>
-    <button onclick="App[${N}].del(${s.id})">削除</button></div>`).join('')||'<small class="hint">データ未取込</small>';
+    <button class="${openEd.has(s.id)?'on':''}" onclick="App[${N}].edToggle(${s.id})">データ編集</button>
+    <button onclick="App[${N}].del(${s.id})">削除</button></div>${openEd.has(s.id)?edHTML(s):''}</div>`).join('')||'<small class="hint">データ未取込</small>';
   const opts=sets.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   [['buy',0],['sell',1]].forEach(([id,i])=>{const el=$(id),cur=el.value;el.innerHTML=opts;
     el.value=sets.some(s=>String(s.id)===cur)?cur:(sets[i]?sets[i].id:'')});
 }
+const openEd=new Set(),edN={};
+const gid=x=>root.querySelector('[id="'+x+'"]');
+const sumTxt=s=>s.rows.length?`${s.rows.length}行 ${s.rows[0].d} 〜 ${s.rows[s.rows.length-1].d}`:'0行';
+const attr=v=>v==null?'':String(v).replace(/"/g,'&quot;');
+function edHTML(s){const n=edN[s.id]||30,all=[...s.rows].reverse(),sh=all.slice(0,n),id=s.id;
+  const cell=(r,k)=>`<td><input type="number" step="any" data-d="${r.d}" data-k="${k}" value="${attr(r[k])}" onchange="App[${N}].edSet(${id},'${r.d}','${k}',this.value)"></td>`;
+  return `<div class="ed" id="ed${id}"><div class="row">日付 <input type="text" class="dt" id="ea${id}" placeholder="20261014" style="width:104px"> 終値 <input type="number" step="any" id="ec${id}" style="width:96px"> <button class="pri" onclick="App[${N}].edAdd(${id})">追加／上書き</button>
+    <span class="hint">新しい日付なら行を追加、既にある日付なら終値を上書きします（新規行の始値・高値・安値・調整後終値は終値と同じ値）</span></div>
+    <div class="edwrap"><table class="edt"><thead><tr><th>日付</th><th>始値</th><th>高値</th><th>安値</th><th>終値</th><th>出来高</th><th>調整後終値</th><th></th></tr></thead><tbody>${sh.map(r=>`<tr><td><input type="text" class="dt" value="${r.d}" onchange="App[${N}].edSet(${id},'${r.d}','d',this.value)"></td>${cell(r,'open')}${cell(r,'high')}${cell(r,'low')}${cell(r,'close')}${cell(r,'vol')}${cell(r,'adj')}<td><button onclick="App[${N}].edDel(${id},'${r.d}')">✕</button></td></tr>`).join('')||'<tr><td colspan="8" class="hint">データなし</td></tr>'}</tbody></table></div>
+    ${all.length>n?`<button onclick="App[${N}].edMore(${id})">さらに30件表示（残り${all.length-n}件）</button>`:''}
+    <div class="hint">セルを書き換えると、チャートとシミュレーションにすぐ反映されます。終値を変えたとき、調整後終値が元の終値と同じだった場合は、調整後終値も一緒に変わります。</div></div>`}
+function edRender(id){const s=sets.find(x=>x.id===id),el=gid('ed'+id);if(!s||!el)return;el.outerHTML=edHTML(s);const m=gid('sm'+id);if(m)m.textContent=sumTxt(s)}
+function edAfter(){drawA();renderSim();drawB();drawNav();saveSoon()}
+function edToggle(id){openEd.has(id)?openEd.delete(id):openEd.add(id);list()}
+function edMore(id){edN[id]=(edN[id]||30)+30;edRender(id)}
+function normD(v){const d=d8(v);return d&&!isNaN(Date.parse(d))?d:null}
+function edSet(id,d,k,v){const s=sets.find(x=>x.id===id);if(!s)return;const r=s.rows.find(x=>x.d===d);if(!r)return;
+  if(k==='d'){const nd=normD(v);if(!nd){alert('日付は 20261014 の形式で入力してください');edRender(id);return}
+    if(nd!==d&&s.rows.some(x=>x.d===nd)){alert(nd+' のデータは既にあります');edRender(id);return}
+    r.d=nd;s.rows.sort((a,b)=>a.d<b.d?-1:1);edRender(id);edAfter();return}
+  const n=v===''||isNaN(parseFloat(v))?null:parseFloat(v);
+  if(k==='close'&&(r.adj==null||r.adj===r.close)){r.adj=n;const a=gid('ed'+id).querySelector(`input[data-d="${d}"][data-k="adj"]`);if(a)a.value=n==null?'':n}
+  r[k]=n;edAfter()}
+function edDel(id,d){const s=sets.find(x=>x.id===id);if(!s)return;if(!confirm(d+' の行を削除しますか？'))return;s.rows=s.rows.filter(x=>x.d!==d);edRender(id);edAfter()}
+function edAdd(id){const s=sets.find(x=>x.id===id);if(!s)return;const nd=normD(gid('ea'+id).value),n=parseFloat(gid('ec'+id).value);
+  if(!nd){alert('日付を 20261014 の形式で入力してください');return}
+  if(isNaN(n)){alert('終値を入力してください');return}
+  const r=s.rows.find(x=>x.d===nd);
+  if(r){if(r.adj==null||r.adj===r.close)r.adj=n;r.close=n}
+  else{s.rows.push({d:nd,open:n,high:n,low:n,close:n,vol:null,adj:n});s.rows.sort((a,b)=>a.d<b.d?-1:1)}
+  edRender(id);edAfter()}
 function upd(id,k,v){sets.find(s=>s.id===id)[k]=v;refresh(k==='name')}
 function adj(id,k,v){let n=parseFloat(v);if(isNaN(n))n=k==='mul'?1:0;sets.find(s=>s.id===id)[k]=n;refresh()}
 function del(id){sets=sets.filter(s=>s.id!==id);refresh()}
@@ -381,7 +421,7 @@ function setState(st){if(!st)return;
   [...$('pb').children].forEach(b=>b.classList.toggle('on',b.dataset.k===period));
   list();if(st.buy)$('buy').value=st.buy;if(st.sell)$('sell').value=st.sell;refresh()}
 setState(ST);
-return {getState,addLine,pickFiles,exportXlsx,sample,appendTo,upd,del,adj,addTrade,delTrade,setT,renderSim,refresh};}
+return {edToggle,edSet,edAdd,edDel,edMore,getState,addLine,pickFiles,exportXlsx,sample,appendTo,upd,del,adj,addTrade,delTrade,setT,renderSim,refresh};}
 
 let ready=false,tmr=0,FEED={},FEEDAT='',nextN=1;
 const $$=id=>document.getElementById(id);
