@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>サヤ取りチャートモニター v13</title>
+<title>サヤ取りチャートモニター v14</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -75,7 +75,7 @@ table.edt input.dt{width:104px;text-align:center}
 </style>
 </head>
 <body>
-<header><h1>📈 サヤ取りチャートモニター <small style="color:var(--mut)">v13</small></h1><input id="feedUrl" type="text" placeholder="価格シートの公開CSV URL（Googleスプレッドシート）" style="width:260px" onchange="saveSoon();loadFeedUrl()"><button class="pri" onclick="loadFeedUrl(true)">今すぐ更新</button><button onclick="pickFeed()" title="CSVまたはJSONファイルから読み込み">ファイル読込</button><span id="feedst" class="hint"></span><input type="file" id="ff" accept=".json,.csv,.txt" hidden><input type="file" id="fb" accept=".json" hidden><button style="margin-left:auto" onclick="saveBackup()">バックアップ保存</button><button onclick="pickBackup()">バックアップ読込</button><button onclick="pasteBackup()">貼付読込</button><button onclick="resetAll()">保存データ消去</button></header>
+<header><h1>📈 サヤ取りチャートモニター <small style="color:var(--mut)">v14</small></h1><input id="feedUrl" type="text" placeholder="価格シートの公開CSV URL（Googleスプレッドシート）" style="width:260px" onchange="saveSoon();loadFeedUrl()"><button class="pri" onclick="loadFeedUrl(true)">今すぐ更新</button><button onclick="pickFeed()" title="CSVまたはJSONファイルから読み込み">ファイル読込</button><span id="feedst" class="hint"></span><input type="file" id="ff" accept=".json,.csv,.txt" hidden><input type="file" id="fb" accept=".json" hidden><button style="margin-left:auto" onclick="saveBackup()">バックアップ保存</button><button onclick="pickBackup()">バックアップ読込</button><button onclick="pasteBackup()">貼付読込</button><button onclick="resetAll()">保存データ消去</button></header>
 <main><div id="sets" style="display:grid;gap:14px"></div><div><button class="pri" onclick="addSet()">＋ Set追加</button></div><div class="card sec" id="help"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>説明</h2><div class="sb hint" style="line-height:1.9">
 列：日付 / 始値 / 高値 / 安値 / 終値 / 出来高 / 調整後終値（ヘッダー行あり可）<br>
 単位：1口 ／ 日付は 20261006 形式 ／ 終値は元データの終値（加減値・倍率は適用外）<br>
@@ -87,13 +87,15 @@ table.edt input.dt{width:104px;text-align:center}
 建玉金額差＝1行目の銘柄の建玉金額に対する各銘柄の差(%)。<br>
 率の初期値は34%で、上の「率」欄で変更できます。<br>
 指定日にデータが無い場合は直前の営業日の終値を使用。<br>
+Export／Import：Exportは、そのSetの全ラインを1つのExcel（ラインごとに1シート、列は日付・始値・高値・安値・終値・出来高・調整後終値）に書き出します。Excelで修正して同じSetでImportすると、シート名＝ライン名として読み込まれます。同じ名前のラインがある場合は、「置き換え」か「日付ごとに追加・上書き」を選べます。<br>
+
 データ編集：取込パネルの各ラインの「データ編集」を押すと、取り込んだデータを日付ごとに書き換えたり、日付と終値を追加／削除できます（チャート・シミュレーションに即反映）。</div></div></main>
 <script>
 const App={};
 function makeSet(N,L,ST){
 const root=document.getElementById("set"+N);
 root.innerHTML=`
-  <section class="card sec"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>データ取込 <button onclick="App[${N}].pickFiles()">Import</button><input type="file" id="f" accept=".xlsx,.xls,.csv" multiple hidden></h2><div class="sb">
+  <section class="card sec"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>データ取込 <button onclick="App[${N}].pickFiles()">Import</button><button onclick="App[${N}].exportXlsx()">Export</button><input type="file" id="f" accept=".xlsx,.xls,.csv" multiple hidden></h2><div class="sb">
     <div id="panel">
       <div class="drop" id="drop">Excel / CSV をここにドロップ（複数可・1ファイル＝1ライン）</div>
       <div id="list"></div>
@@ -168,23 +170,32 @@ function readFile(file){
     fr.onload=e=>{
       try{
         const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
-        let rows=[];
-        wb.SheetNames.forEach(n=>{rows=rows.concat(XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null}))});
-        res(parseRows(rows));
+        const out=[];
+        wb.SheetNames.forEach(n=>{const rows=parseRows(XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null}));if(rows.length)out.push({name:n,rows})});
+        res(out);
       }catch(err){alert(file.name+' を読み込めません');res([])}
     };
     fr.readAsArrayBuffer(file);
   });
 }
 async function handleFiles(files){
+  let mode=null;
   for(const f of files){
-    const rows=await readFile(f);
-    if(!rows.length){alert(f.name+': 有効なデータ行がありません');continue}
-    if(pendingTarget!=null){const ds=sets.find(s=>s.id===pendingTarget);if(ds)merge(ds,rows)}
-    else{
-      const ds={id:Date.now()+Math.random(),name:pendingName||f.name.replace(/\.[^.]+$/,''),color:COLORS[sets.length%COLORS.length],show:true,add:0,mul:1,rows:[]};
-      merge(ds,rows);sets.push(ds);
-    }
+    const shs=await readFile(f);
+    if(!shs.length){alert(f.name+': 有効なデータ行がありません');continue}
+    if(pendingTarget!=null){const ds=sets.find(s=>s.id===pendingTarget);if(ds)shs.forEach(sh=>merge(ds,sh.rows))}
+    else shs.forEach(sh=>{
+      const nm=shs.length>1?sh.name:(pendingName||f.name.replace(/\.[^.]+$/,''));
+      const ex=sets.find(s=>s.name===nm);
+      if(ex){
+        if(mode==null)mode=confirm('同じ名前のラインがあります（'+nm+' など）。\nOK：Excelの内容に置き換える\nキャンセル：日付ごとに追加・上書き（既存の行は残す）');
+        if(mode)ex.rows=[];
+        merge(ex,sh.rows);
+      }else{
+        const ds={id:Date.now()+Math.random(),name:nm,color:COLORS[sets.length%COLORS.length],show:true,add:0,mul:1,rows:[]};
+        merge(ds,sh.rows);sets.push(ds);
+      }
+    });
     pendingName=null;
   }
   pendingTarget=null;fi.value='';refresh();
@@ -200,12 +211,16 @@ drop.addEventListener('drop',ev=>{pendingTarget=null;handleFiles([...ev.dataTran
 
 function exportXlsx(){
   if(!sets.length){alert('データがありません');return}
-  const wb=XLSX.utils.book_new();
+  const wb=XLSX.utils.book_new(),used=new Set();
   sets.forEach((s,i)=>{
     const aoa=[['日付','始値','高値','安値','終値','出来高','調整後終値'],...s.rows.map(r=>[r.d,r.open,r.high,r.low,r.close,r.vol,r.adj])];
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),(s.name.replace(/[\\\/?*\[\]:]/g,'_')||'Sheet'+i).slice(0,28)+(i?'_'+i:''));
+    let nm=(s.name.replace(/[\\\/?*\[\]:]/g,'_').trim()||'Sheet'+(i+1)).slice(0,31),k=2;
+    while(used.has(nm.toLowerCase())){const sf='_'+k++;nm=nm.slice(0,31-sf.length)+sf}
+    used.add(nm.toLowerCase());
+    const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:12},{wch:10},{wch:10},{wch:10},{wch:10},{wch:12},{wch:12}];
+    XLSX.utils.book_append_sheet(wb,ws,nm);
   });
-  saveFile('saya-data.xlsx',XLSX.write(wb,{bookType:'xlsx',type:'array'}));
+  saveFile('saya-set'+N+'-'+jst8()+'.xlsx',XLSX.write(wb,{bookType:'xlsx',type:'array'}));
 }
 
 function key(d){return period==='Y'?d.slice(0,4):period==='M'?d.slice(0,7):d}
@@ -432,7 +447,10 @@ function modal(msg,txt,edit,label,fn){const o=document.createElement('div');o.st
   b.onclick=()=>{if(fn)fn(ta.value);else{ta.select();try{navigator.clipboard.writeText(ta.value)}catch(e){document.execCommand('copy')}}};
   o.querySelector('.cl').onclick=()=>o.remove()}
 function pasteBackup(){modal('バックアップの内容を貼り付けてください。','',true,'読込',async v=>{try{const o=JSON.parse(v);if(!o.sets&&!o.list)throw 0;ready=false;await dbPut(o);location.reload()}catch(x){alert('バックアップを読み込めません')}})}
-async function saveFile(name,data){const d=window.claude&&await claude.use('downloads');
+function dlBlob(name,data){const t=/\.json$/.test(name)?'application/json':/\.xlsx$/.test(name)?'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'application/octet-stream';
+  const u=URL.createObjectURL(new Blob([data],{type:t})),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
+async function saveFile(name,data){if(!window.claude){dlBlob(name,data);return}
+  const d=await claude.use('downloads');
   if(!d){if(typeof data==='string')modal('「'+name+'」の内容です。コピーして、メモ帳などに貼り付け、「'+name+'」として保存してください。',data,false);
     else alert(window.claude?'ダウンロードが許可されていません。ページのPermissionsメニューで許可してから再読み込みしてください。':'公開ページとして開いてください（チャット内のプレビューでは保存できません）。');return}
   try{await d.save({filename:name,data})}catch(e){if(!e||e.code!=='declined')alert('保存できません: '+((e&&(e.message||e.code))||''))}}
