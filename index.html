@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>サヤ取りチャートモニター v14</title>
+<title>サヤ取りチャートモニター v15</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
 --bg:#f4f6f9;--card:#fff;--tx:#1b2430;--mut:#6b7684;--bd:#dde2e9;--pri:#1f6feb;--grid:#e6eaf0}
@@ -19,7 +20,7 @@ h1{font-size:17px;margin:0 auto 0 0}
 main{max-width:1100px;margin:0 auto;padding:14px;display:grid;gap:14px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px}
 .card h2{font-size:14px;margin:0 0 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-button,select,input[type=text]{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:5px 10px}
+button,select,input[type=text],input[type=password],input[type=email]{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:5px 10px}
 button{cursor:pointer}button:hover{border-color:var(--pri)}
 button.pri{background:var(--pri);border-color:var(--pri);color:#fff}
 button.on{background:var(--pri);border-color:var(--pri);color:#fff}
@@ -75,7 +76,7 @@ table.edt input.dt{width:104px;text-align:center}
 </style>
 </head>
 <body>
-<header><h1>📈 サヤ取りチャートモニター <small style="color:var(--mut)">v14</small></h1><input id="feedUrl" type="text" placeholder="価格シートの公開CSV URL（Googleスプレッドシート）" style="width:260px" onchange="saveSoon();loadFeedUrl()"><button class="pri" onclick="loadFeedUrl(true)">今すぐ更新</button><button onclick="pickFeed()" title="CSVまたはJSONファイルから読み込み">ファイル読込</button><span id="feedst" class="hint"></span><input type="file" id="ff" accept=".json,.csv,.txt" hidden><input type="file" id="fb" accept=".json" hidden><button style="margin-left:auto" onclick="saveBackup()">バックアップ保存</button><button onclick="pickBackup()">バックアップ読込</button><button onclick="pasteBackup()">貼付読込</button><button onclick="resetAll()">保存データ消去</button></header>
+<header><h1>📈 サヤ取りチャートモニター <small style="color:var(--mut)">v15</small></h1><input id="feedUrl" type="text" placeholder="価格シートの公開CSV URL（Googleスプレッドシート）" style="width:260px" onchange="saveSoon();loadFeedUrl()"><button class="pri" onclick="loadFeedUrl(true)">今すぐ更新</button><button onclick="pickFeed()" title="CSVまたはJSONファイルから読み込み">ファイル読込</button><span id="feedst" class="hint"></span><button onclick="cloudDlg()">☁ 同期</button><span id="cloudst" class="hint">☁ 未設定</span><input type="file" id="ff" accept=".json,.csv,.txt" hidden><input type="file" id="fb" accept=".json" hidden><button style="margin-left:auto" onclick="saveBackup()">バックアップ保存</button><button onclick="pickBackup()">バックアップ読込</button><button onclick="pasteBackup()">貼付読込</button><button onclick="resetAll()">保存データ消去</button></header>
 <main><div id="sets" style="display:grid;gap:14px"></div><div><button class="pri" onclick="addSet()">＋ Set追加</button></div><div class="card sec" id="help"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>説明</h2><div class="sb hint" style="line-height:1.9">
 列：日付 / 始値 / 高値 / 安値 / 終値 / 出来高 / 調整後終値（ヘッダー行あり可）<br>
 単位：1口 ／ 日付は 20261006 形式 ／ 終値は元データの終値（加減値・倍率は適用外）<br>
@@ -87,6 +88,8 @@ table.edt input.dt{width:104px;text-align:center}
 建玉金額差＝1行目の銘柄の建玉金額に対する各銘柄の差(%)。<br>
 率の初期値は34%で、上の「率」欄で変更できます。<br>
 指定日にデータが無い場合は直前の営業日の終値を使用。<br>
+クラウド同期：ヘッダーの「☁ 同期」でSupabaseにログインすると、Set・ライン・取込データ・シミュレーション・メモが、他の端末と自動で同期されます（変更の数秒後にクラウドへ保存、開いたとき・画面に戻ったとき・5分ごとに最新を確認）。パネルの開閉と表示期間は端末ごとの設定です。最新価格は、クラウドの latest_prices 表があればそれを優先して使います。<br>
+
 Export／Import：Exportは、そのSetの全ラインを1つのExcel（ラインごとに1シート、列は日付・始値・高値・安値・終値・出来高・調整後終値）に書き出します。Excelで修正して同じSetでImportすると、シート名＝ライン名として読み込まれます。同じ名前のラインがある場合は、「置き換え」か「日付ごとに追加・上書き」を選べます。<br>
 
 データ編集：取込パネルの各ラインの「データ編集」を押すと、取り込んだデータを日付ごとに書き換えたり、日付と終値を追加／削除できます（チャート・シミュレーションに即反映）。</div></div></main>
@@ -462,7 +465,7 @@ function applyFeed(o,src){const m={};
   else if(o&&typeof o==='object')Object.keys(o).forEach(k=>{if(o[k]&&typeof o[k]==='object')m[k]=o[k]});
   FEED=m;FEEDAT=new Date().toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',hour12:false});$$('feedst').textContent='最終更新 '+FEEDAT+'（JST）';
   Object.values(App).forEach(a=>a.refresh());saveSoon()}
-async function loadFeedUrl(manual){const u=$$('feedUrl').value.trim();if(!u){if(manual)$$('feedst').textContent='URLを入力してください';return}
+async function loadFeedUrl(manual){if(await loadCloudPrices())return;const u=$$('feedUrl').value.trim();if(!u){if(manual)$$('feedst').textContent='URLを入力してください';return}
   try{const r=await fetch(u+(u.includes('?')?'&':'?')+'t='+Date.now(),{cache:'no-store'});if(!r.ok)throw 0;const t=await r.text();let o;try{o=JSON.parse(t)}catch(e){o=t}
     applyFeed(o,'URL');if(!Object.keys(FEED).length)$$('feedst').textContent='価格を読み取れませんでした（形式を確認）'}
   catch(e){$$('feedst').textContent='URLから取得できません（claude.ai上では外部通信が制限される場合があります。ファイル読込をお使いください）'}}
@@ -479,8 +482,8 @@ const letters=k=>[colName(2*k),colName(2*k+1)];
 function collect(){return{v:2,feed:FEED,feedAt:FEEDAT,feedUrl:$$('feedUrl').value,helpClosed:$$('help').classList.contains('closed'),
   list:[...document.querySelectorAll('.outer')].map(w=>({n:+w.dataset.n,state:App[w.dataset.n].getState(),note:w.querySelector('.note').value,closed:[w,...w.querySelectorAll('.sec')].map(x=>x.classList.contains('closed'))}))}}
 function flush(){if(ready)dbPut(collect())}
-function saveSoon(){if(!ready)return;clearTimeout(tmr);tmr=setTimeout(flush,500)}
-async function resetAll(){if(confirm('保存されたデータをすべて消去して初期化しますか？')){ready=false;await dbPut(null);location.reload()}}
+function saveSoon(){if(!ready)return;clearTimeout(tmr);tmr=setTimeout(flush,500);cloudSoon()}
+async function resetAll(){if(confirm('この端末に保存されたデータを消去して初期化しますか？\n（クラウドのデータは消えません。ログインすると、クラウドの内容が再び読み込まれます）')){ready=false;await dbPut(null);await kvPut('meta',null);location.reload()}}
 function tg(b){const w=b.closest('.sec'),c=w.classList.toggle('closed');b.textContent=c?'+':'−';const nw=b.closest('[data-n]');if(!c&&nw){const a=App[nw.dataset.n];a&&a.refresh()}saveSoon()}
 function renumber(){document.querySelectorAll('.outer').forEach((w,k)=>{const L=letters(k),c=w.querySelectorAll('.cn');w.querySelector('.snum').textContent='Set '+(k+1);
   if(c[0])c[0].textContent='チャート '+L[0]+'（価格）';if(c[1])c[1].textContent='チャート '+L[1]+'（サヤ差）'})}
@@ -491,8 +494,106 @@ function mkSet(n,st,note,closed){const k=document.querySelectorAll('.outer').len
   [w,...w.querySelectorAll('.sec')].forEach((x,j)=>{if(closed&&closed[j]){x.classList.add('closed');const b=x.querySelector(':scope>.sh>.tb');if(b)b.textContent='+'}})}
 function addSet(){mkSet(nextN++,null,'',null);renumber();saveSoon()}
 function delSet(b){const w=b.closest('.outer');if(!confirm('このSetを削除しますか？（取り込んだデータも消えます）'))return;delete App[w.dataset.n];w.remove();renumber();saveSoon()}
+/* ===== クラウド同期 (Supabase) ===== */
+const CK='saya_cloud';let sb=null,CU=null,cloudBusy=false,cloudReady=false,ctmr=0,CM={base:null,struct:'',lines:{},adopt:false};
+async function kvGet(k){try{const d=await idb();return await new Promise(res=>{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(null)})}catch(e){return null}}
+async function kvPut(k,v){try{const d=await idb();await new Promise(res=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=res;t.onerror=res;t.onabort=res})}catch(e){}}
+const cfg=()=>{try{return JSON.parse(localStorage.getItem(CK)||'null')}catch(e){return null}};
+const cst=t=>{const e=$$('cloudst');if(e)e.textContent=t};
+const hhmm=()=>new Date().toLocaleTimeString('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'});
+function lineSig(s){let a=0,b=0,c=0,w=0;s.rows.forEach((r,i)=>{a+=r.close||0;b+=r.adj||0;c+=(r.open||0)+(r.high||0)+(r.low||0)+(r.vol||0);w+=(i+1)*(r.close||0)});
+  const n=s.rows.length;return n+'|'+(n?s.rows[0].d:'')+'|'+(n?s.rows[n-1].d:'')+'|'+[a,b,c,w].map(x=>Math.round(x*100)/100).join('|')}
+function structOf(){const c=collect();return{v:3,list:c.list.map(x=>({n:x.n,note:x.note,state:{...x.state,rng:null,sets:x.state.sets.map(s=>{const t={...s};delete t.rows;t.sig=lineSig(s);return t})}}))}}
+function rowsMap(){const m={};collect().list.forEach(x=>x.state.sets.forEach(s=>m[String(s.id)]=s.rows));return m}
+const b64=u=>{let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)};
+const unb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+async function encRows(rows){const j=JSON.stringify(rows.map(r=>[r.d,r.open,r.high,r.low,r.close,r.vol,r.adj]));
+  if(window.CompressionStream){const st=new Blob([j]).stream().pipeThrough(new CompressionStream('gzip'));return 'gz:'+b64(new Uint8Array(await new Response(st).arrayBuffer()))}
+  return 'js:'+j}
+async function decRows(t){let j;if(t.startsWith('gz:'))j=await new Response(new Blob([unb64(t.slice(3))]).stream().pipeThrough(new DecompressionStream('gzip'))).text();else j=t.slice(3);
+  return JSON.parse(j).map(a=>({d:a[0],open:a[1],high:a[2],low:a[3],close:a[4],vol:a[5],adj:a[6]}))}
+const isDirty=()=>JSON.stringify(structOf())!==CM.struct;
+function cloudSoon(){if(!sb||!CU||!cloudReady)return;clearTimeout(ctmr);ctmr=setTimeout(()=>{if(isDirty())cloudPush()},5000)}
+async function cloudInit(){const c=cfg();
+  if(!window.supabase){cst('☁ 同期不可（ライブラリ未読込）');return}
+  if(!c||!c.url||!c.key){cst('☁ 未設定');return}
+  try{sb=supabase.createClient(c.url,c.key);const r=await sb.auth.getSession();CU=r.data.session?r.data.session.user:null;
+    sb.auth.onAuthStateChange((_e,se)=>{CU=se?se.user:null});
+    if(CU)await cloudPull();else cst('☁ 未ログイン')}catch(e){cst('☁ 接続エラー')}}
+async function cloudLogin(url,key,email,pw){
+  if(!window.supabase)throw new Error('Supabaseライブラリを読み込めません（通信を確認してください）');
+  localStorage.setItem(CK,JSON.stringify({url:url.trim().replace(/\/+$/,''),key:key.trim(),email:email.trim()}));
+  const c=cfg();sb=supabase.createClient(c.url,c.key);
+  const r=await sb.auth.signInWithPassword({email:email.trim(),password:pw});if(r.error)throw r.error;
+  CU=r.data.user;sb.auth.onAuthStateChange((_e,se)=>{CU=se?se.user:null});cloudReady=false;await cloudPull();loadFeedUrl()}
+async function cloudLogout(){try{if(sb)await sb.auth.signOut()}catch(e){}CU=null;cloudReady=false;cst('☁ 未ログイン')}
+async function cloudPush(force){
+  if(!sb||!CU||cloudBusy)return;cloudBusy=true;
+  try{cst('☁ 同期中...');
+    const st=structOf(),ss=JSON.stringify(st);
+    const r=await sb.from('app_state').select('updated_at').eq('user_id',CU.id).limit(1);if(r.error)throw r.error;
+    const remoteAt=r.data[0]?r.data[0].updated_at:null;
+    if(remoteAt&&remoteAt!==CM.base&&!force){
+      const ok=confirm('クラウドに、別の端末で更新された新しいデータがあります。\nOK：この端末の内容でクラウドを上書き\nキャンセル：クラウドの内容を読み込む（この端末の未同期の変更は失われます）');
+      if(!ok){cloudBusy=false;await cloudPull(true);return}}
+    const all=!remoteAt||remoteAt!==CM.base,rows=rowsMap(),lines=[];st.list.forEach(x=>x.state.sets.forEach(s=>lines.push(s)));
+    const sigs={};
+    for(const s of lines){const id=String(s.id);sigs[id]=s.sig;if(!all&&CM.lines[id]===s.sig)continue;
+      const e=await sb.from('line_data').upsert({user_id:CU.id,line_id:id,name:s.name,rows_gz:await encRows(rows[id]||[]),n:(rows[id]||[]).length,sig:s.sig},{onConflict:'user_id,line_id'});if(e.error)throw e.error}
+    const ex=await sb.from('line_data').select('line_id').eq('user_id',CU.id);if(ex.error)throw ex.error;
+    for(const x of ex.data){if(!(x.line_id in sigs)){const d=await sb.from('line_data').delete().eq('user_id',CU.id).eq('line_id',x.line_id);if(d.error)throw d.error}}
+    const w=await sb.from('app_state').upsert({user_id:CU.id,state:st},{onConflict:'user_id'}).select('updated_at');if(w.error)throw w.error;
+    CM={base:w.data[0].updated_at,struct:ss,lines:sigs,adopt:false};await kvPut('meta',CM);
+    cloudReady=true;cst('☁ 同期済 '+hhmm())
+  }catch(e){cst('☁ 同期エラー: '+((e&&e.message)||e))}
+  cloudBusy=false;if(cloudReady&&isDirty())cloudSoon()}
+async function cloudPull(forceRemote){
+  if(!sb||!CU||cloudBusy)return;cloudBusy=true;
+  try{cst('☁ 同期中...');
+    const r=await sb.from('app_state').select('state,updated_at').eq('user_id',CU.id).limit(1);if(r.error)throw r.error;
+    const rem=r.data[0],st=structOf(),ss=JSON.stringify(st);
+    const hasLocal=st.list.some(x=>x.state.sets.length||x.state.trades.some(t=>t.od||t.cd)||x.note);
+    if(!rem){cloudBusy=false;cloudReady=true;if(hasLocal)await cloudPush(true);else cst('☁ 同期済 '+hhmm());return}
+    if(rem.updated_at===CM.base&&!forceRemote){cloudBusy=false;cloudReady=true;if(isDirty())await cloudPush();else cst('☁ 同期済 '+hhmm());return}
+    const dirty=CM.base?ss!==CM.struct:hasLocal;
+    if(dirty&&!forceRemote){
+      const ok=confirm('クラウドにデータがあります（この端末にも別のデータがあります）。\nOK：クラウドの内容に置き換える\nキャンセル：この端末の内容でクラウドを上書き');
+      if(!ok){cloudBusy=false;cloudReady=true;await cloudPush(true);return}}
+    // クラウドの内容を取り込む（変わっていないラインは端末のデータを再利用）
+    const local=rowsMap(),localSig={};st.list.forEach(x=>x.state.sets.forEach(s=>localSig[String(s.id)]=s.sig));
+    const rs=rem.state.list||[],need=[];rs.forEach(x=>x.state.sets.forEach(s=>{const id=String(s.id);if(!(localSig[id]===s.sig&&local[id]))need.push(id)}));
+    const got={};
+    if(need.length){const d=await sb.from('line_data').select('line_id,rows_gz').eq('user_id',CU.id).in('line_id',need);if(d.error)throw d.error;
+      for(const x of d.data)got[x.line_id]=await decRows(x.rows_gz)}
+    const cur=collect(),sigs={};
+    const list=rs.map(x=>{const lc=cur.list.find(l=>l.n===x.n)||{};
+      return{n:x.n,note:x.note,closed:lc.closed||[],state:{...x.state,rng:lc.state?lc.state.rng:null,sets:x.state.sets.map(s=>{const id=String(s.id),t={...s};sigs[id]=s.sig;delete t.sig;t.rows=got[id]||local[id]||[];return t})}}});
+    const full={...cur,list};
+    ready=false;await kvPut('state',full);
+    CM={base:rem.updated_at,struct:'',lines:sigs,adopt:true};await kvPut('meta',CM);
+    location.reload();
+  }catch(e){cst('☁ 同期エラー: '+((e&&e.message)||e));cloudBusy=false}}
+async function loadCloudPrices(){if(!sb||!CU)return false;
+  try{const r=await sb.from('latest_prices').select('code,d,close');if(r.error||!r.data||!r.data.length)return false;
+    const m={};r.data.forEach(x=>{m[x.code]={date:String(x.d).replace(/-/g,''),close:+x.close}});applyFeed(m,'クラウド');return true}catch(e){return false}}
+function cloudDlg(){const c=cfg()||{},o=document.createElement('div');
+  o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;display:flex;align-items:center;justify-content:center;padding:16px';
+  o.innerHTML=`<div class="card" style="max-width:520px;width:100%;display:grid;gap:8px"><b>☁ クラウド同期（Supabase）</b>
+  <div class="hint">${CU?'ログイン中：'+(CU.email||''):'Supabaseの設定とログイン情報を入力してください（設定方法は手順書を参照）。パスワードは保存されません。'}</div>
+  <label class="hint">Project URL<input type="text" id="cu" style="width:100%" placeholder="https://xxxx.supabase.co" value="${attr(c.url)}"></label>
+  <label class="hint">anon public key<input type="text" id="ck" style="width:100%" placeholder="eyJ... または sb_publishable_..." value="${attr(c.key)}"></label>
+  <label class="hint">メールアドレス<input type="email" id="ce" style="width:100%" value="${attr(c.email)}"></label>
+  <label class="hint">パスワード<input type="password" id="cp" style="width:100%"></label>
+  <div id="cm" class="hint" style="color:#e5484d"></div>
+  <div class="row"><button class="pri" id="cgo">ログイン</button><button id="cnow">今すぐ同期</button><button id="cout">ログアウト</button><button id="ccl">閉じる</button></div></div>`;
+  document.body.appendChild(o);const g=i=>o.querySelector('#'+i);
+  g('ccl').onclick=()=>o.remove();
+  g('cgo').onclick=async()=>{g('cm').textContent='';try{await cloudLogin(g('cu').value,g('ck').value,g('ce').value,g('cp').value);o.remove()}catch(e){g('cm').textContent='ログインできません: '+((e&&e.message)||e)}};
+  g('cnow').onclick=async()=>{if(!CU){g('cm').textContent='先にログインしてください';return}o.remove();await cloudPull();if(isDirty())await cloudPush();await loadFeedUrl(true)};
+  g('cout').onclick=async()=>{await cloudLogout();o.remove()}}
+const attr=v=>v==null?'':String(v).replace(/"/g,'&quot;');
 async function init(){
-  const st=await dbGet();let list=[{n:1}];
+  const st=await dbGet();let list=[{n:1}];CM=(await kvGet('meta'))||CM;
   if(st){FEED=st.feed||{};FEEDAT=st.feedAt||'';$$('feedUrl').value=st.feedUrl||'';
     list=st.list||(st.sets||[]).map((x,i)=>({n:i+1,state:x,note:(st.notes||[])[i],closed:(st.closed||[])[i]}));
     if(st.helpClosed){$$('help').classList.add('closed');$$('help').querySelector('.tb').textContent='+'}}
@@ -500,8 +601,11 @@ async function init(){
   if(FEEDAT)$$('feedst').textContent='最終更新 '+FEEDAT+'（JST）';
   nextN=Math.max(0,...list.map(x=>x.n))+1;
   list.forEach(x=>mkSet(x.n,x.state,x.note,x.closed));renumber();
-  ready=true;if($$('feedUrl').value)loadFeedUrl();setInterval(()=>{if($$('feedUrl').value)loadFeedUrl()},3600000);
-  addEventListener('visibilitychange',()=>{if(document.hidden)flush()});addEventListener('pagehide',flush);
+  ready=true;
+  if(CM.adopt){CM.struct=JSON.stringify(structOf());CM.adopt=false;await kvPut('meta',CM)}
+  await cloudInit();
+  if($$('feedUrl').value||CU)loadFeedUrl();setInterval(()=>{if($$('feedUrl').value||CU)loadFeedUrl()},3600000);setInterval(()=>{if(CU&&cloudReady&&!document.hidden)cloudPull()},300000);
+  addEventListener('visibilitychange',()=>{if(document.hidden)flush();else if(CU&&cloudReady)cloudPull()});addEventListener('pagehide',flush);
 }
 init();
 </script>
