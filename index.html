@@ -76,7 +76,7 @@ table.edt input.dt{width:104px;text-align:center}
 </style>
 </head>
 <body>
-<header><h1>📈 サヤ取りチャートモニター <small style="color:var(--mut)">v16</small></h1><input id="feedUrl" type="text" placeholder="価格シートの公開CSV URL（Googleスプレッドシート）" style="width:260px" onchange="saveSoon();loadFeedUrl()"><button class="pri" onclick="loadFeedUrl(true)">今すぐ更新</button><button onclick="pickFeed()" title="CSVまたはJSONファイルから読み込み">ファイル読込</button><span id="feedst" class="hint"></span><button onclick="cloudDlg()">☁ 同期</button><span id="cloudst" class="hint">☁ 未設定</span><input type="file" id="ff" accept=".json,.csv,.txt" hidden><input type="file" id="fb" accept=".json" hidden><button style="margin-left:auto" onclick="saveBackup()">バックアップ保存</button><button onclick="pickBackup()">バックアップ読込</button><button onclick="pasteBackup()">貼付読込</button><button onclick="resetAll()">保存データ消去</button></header>
+<header><h1>📈 サヤ取りチャートモニター <small style="color:var(--mut)">v17</small></h1><input id="feedUrl" type="text" placeholder="価格シートの公開CSV URL（Googleスプレッドシート）" style="width:260px" onchange="saveSoon();loadFeedUrl()"><button class="pri" onclick="loadFeedUrl(true)">今すぐ更新</button><button onclick="pickFeed()" title="CSVまたはJSONファイルから読み込み">ファイル読込</button><span id="feedst" class="hint"></span><button onclick="cloudDlg()">☁ 同期</button><span id="cloudst" class="hint">☁ 未設定</span><input type="file" id="ff" accept=".json,.csv,.txt" hidden><input type="file" id="fb" accept=".json" hidden><button style="margin-left:auto" onclick="saveBackup()">バックアップ保存</button><button onclick="pickBackup()">バックアップ読込</button><button onclick="pasteBackup()">貼付読込</button><button onclick="resetAll()">保存データ消去</button></header>
 <main><div id="sets" style="display:grid;gap:14px"></div><div><button class="pri" onclick="addSet()">＋ Set追加</button></div><div class="card sec" id="help"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>説明</h2><div class="sb hint" style="line-height:1.9">
 列：日付 / 始値 / 高値 / 安値 / 終値 / 出来高 / 調整後終値（ヘッダー行あり可）<br>
 単位：1口 ／ 日付は 20261006 形式 ／ 終値は元データの終値（加減値・倍率は適用外）<br>
@@ -95,6 +95,7 @@ Trading Number：同じ番号の取引は同じ資金サイクルとして扱い
 
 Export／Import：Exportは、そのSetの全ラインを1つのExcel（ラインごとに1シート、列は日付・始値・高値・安値・終値・出来高・調整後終値）に書き出します。Excelで修正して同じSetでImportすると、シート名＝ライン名として読み込まれます。同じ名前のラインがある場合は、「置き換え」か「日付ごとに追加・上書き」を選べます。<br>
 
+履歴の自動追加：GitHub Actionsが平日の日本時間9:05〜16:05に1時間ごとに、history/銘柄コード.csv（例: history/1488.csv）の最終日以降の日付・始値・高値・安値・終値・出来高を追記・更新します（当日分は16:05の更新で確定値）。ページは開いたとき・1時間ごと・画面に戻ったときにこのファイルを読み、ラインの最終日より新しい日付の行を追加します（ラインの名前に4桁の銘柄コードが必要）。ページを開かなかった間の日付もまとめて追加されます。直近7日分の行は履歴ファイルの値で更新されます。初回だけ、データ取込パネルの各ラインの「履歴CSV」で元データを書き出し、GitHubの history フォルダに銘柄コード.csv として置いてください。<br>
 データ編集：取込パネルの各ラインの「データ編集」を押すと、取り込んだデータを日付ごとに書き換えたり、日付と終値を追加／削除できます（チャート・シミュレーションに即反映）。</div></div></main>
 <script>
 const App={};
@@ -249,6 +250,7 @@ function list(){
     <label>倍率 <input type="number" step="any" value="${s.mul}" onchange="App[${N}].adj(${s.id},'mul',this.value)"></label>
     <button onclick="App[${N}].appendTo(${s.id})">データ追加</button>
     <button class="${openEd.has(s.id)?'on':''}" onclick="App[${N}].edToggle(${s.id})">データ編集</button>
+    <button title="GitHubの history フォルダに置く履歴CSV（初回の元データ用）" onclick="App[${N}].histCsv(${s.id})">履歴CSV</button>
     <button onclick="App[${N}].del(${s.id})">削除</button></div>${openEd.has(s.id)?edHTML(s):''}</div>`).join('')||'<small class="hint">データ未取込</small>';
   const opts=sets.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   [['buy',0],['sell',1]].forEach(([id,i])=>{const el=$(id),cur=el.value;el.innerHTML=opts;
@@ -454,7 +456,21 @@ function setState(st){if(!st)return;
   [...$('pb').children].forEach(b=>b.classList.toggle('on',b.dataset.k===period));
   list();if(st.buy)$('buy').value=st.buy;if(st.sell)$('sell').value=st.sell;refresh()}
 setState(ST);
-return {edToggle,edSet,edAdd,edDel,edMore,getState,addLine,pickFiles,exportXlsx,sample,appendTo,upd,del,adj,addTrade,delTrade,setT,renderSim,refresh};}
+const codeOf=s=>(s.name.match(/\d{4}[A-Z]?/)||[])[0];
+function lineCodes(){return sets.map(codeOf).filter(Boolean)}
+function histCsv(id){const s=sets.find(x=>x.id===id);if(!s||!s.rows.length){alert('データがありません');return}
+  const f=v=>v==null?'':v,c=codeOf(s);if(!c)alert('ライン名に4桁の銘柄コード（例: 1488）が含まれていないため、ファイル名は「'+s.name+'.csv」になります。GitHubでは「銘柄コード.csv」に直してください。');
+  saveFile((c||s.name)+'.csv','date,open,high,low,close,volume,adj\n'+s.rows.map(r=>[r.d,f(r.open),f(r.high),f(r.low),f(r.close),f(r.vol),f(r.adj)].join(',')).join('\n')+'\n')}
+function mergeHist(map){let ch=0;
+  sets.forEach(s=>{const c=codeOf(s),txt=c&&map[c];if(!txt)return;
+    const h=parseRows(txt.split(/\r?\n/).map(l=>l.split(',')));if(!h.length)return;
+    const hl=h[h.length-1].d,cut=new Date(Date.parse(hl+'T00:00:00Z')-7*864e5).toISOString().slice(0,10),last=s.rows.length?s.rows[s.rows.length-1].d:'',m=new Map(s.rows.map(r=>[r.d,r]));let c1=0;
+    h.forEach(r=>{const e=m.get(r.d);
+      if(!e){if(r.d>last){s.rows.push(r);m.set(r.d,r);c1++}}
+      else if(r.d>=cut&&(e.close!==r.close||e.adj!==r.adj)){Object.assign(e,r);c1++}});
+    if(c1){s.rows.sort((a,b)=>a.d<b.d?-1:1);ch+=c1}});
+  if(ch)refresh();return ch}
+return {lineCodes,mergeHist,histCsv,edToggle,edSet,edAdd,edDel,edMore,getState,addLine,pickFiles,exportXlsx,sample,appendTo,upd,del,adj,addTrade,delTrade,setT,renderSim,refresh};}
 
 let ready=false,tmr=0,FEED={},FEEDAT='',nextN=1;
 const $$=id=>document.getElementById(id);
@@ -465,7 +481,7 @@ function modal(msg,txt,edit,label,fn){const o=document.createElement('div');o.st
   b.onclick=()=>{if(fn)fn(ta.value);else{ta.select();try{navigator.clipboard.writeText(ta.value)}catch(e){document.execCommand('copy')}}};
   o.querySelector('.cl').onclick=()=>o.remove()}
 function pasteBackup(){modal('バックアップの内容を貼り付けてください。','',true,'読込',async v=>{try{const o=JSON.parse(v);if(!o.sets&&!o.list)throw 0;ready=false;await dbPut(o);location.reload()}catch(x){alert('バックアップを読み込めません')}})}
-function dlBlob(name,data){const t=/\.json$/.test(name)?'application/json':/\.xlsx$/.test(name)?'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'application/octet-stream';
+function dlBlob(name,data){const t=/\.json$/.test(name)?'application/json':/\.csv$/.test(name)?'text/csv':/\.xlsx$/.test(name)?'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'application/octet-stream';
   const u=URL.createObjectURL(new Blob([data],{type:t})),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
 async function saveFile(name,data){if(!window.claude){dlBlob(name,data);return}
   const d=await claude.use('downloads');
@@ -480,6 +496,11 @@ function applyFeed(o,src){const m={};
   else if(o&&typeof o==='object')Object.keys(o).forEach(k=>{if(o[k]&&typeof o[k]==='object')m[k]=o[k]});
   FEED=m;FEEDAT=new Date().toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',hour12:false});$$('feedst').textContent='最終更新 '+FEEDAT+'（JST）';
   Object.values(App).forEach(a=>a.refresh());saveSoon()}
+async function loadHistory(){if(!/^https?:$/.test(location.protocol)||/claude/.test(location.host))return;
+  const codes=new Set();Object.values(App).forEach(a=>a.lineCodes().forEach(c=>codes.add(c)));const map={};
+  await Promise.all([...codes].map(async c=>{try{const r=await fetch('history/'+c+'.csv?t='+Date.now(),{cache:'no-store'});if(r.ok)map[c]=await r.text()}catch(e){}}));
+  let ch=0;Object.values(App).forEach(a=>{ch+=a.mergeHist(map)});
+  if(ch){const e=$$('feedst');e.textContent=e.textContent.replace(/／履歴.*$/,'')+'／履歴 '+ch+'行を反映'}}
 async function loadFeedUrl(manual){if(await loadCloudPrices())return;const u=$$('feedUrl').value.trim();if(!u){if(manual)$$('feedst').textContent='URLを入力してください';return}
   try{const r=await fetch(u+(u.includes('?')?'&':'?')+'t='+Date.now(),{cache:'no-store'});if(!r.ok)throw 0;const t=await r.text();let o;try{o=JSON.parse(t)}catch(e){o=t}
     applyFeed(o,'URL');if(!Object.keys(FEED).length)$$('feedst').textContent='価格を読み取れませんでした（形式を確認）'}
@@ -619,8 +640,8 @@ async function init(){
   ready=true;
   if(CM.adopt){CM.struct=JSON.stringify(structOf());CM.adopt=false;await kvPut('meta',CM)}
   await cloudInit();
-  if($$('feedUrl').value||CU)loadFeedUrl();setInterval(()=>{if($$('feedUrl').value||CU)loadFeedUrl()},3600000);setInterval(()=>{if(CU&&cloudReady&&!document.hidden)cloudPull()},300000);
-  addEventListener('visibilitychange',()=>{if(document.hidden)flush();else if(CU&&cloudReady)cloudPull()});addEventListener('pagehide',flush);
+  if($$('feedUrl').value||CU)loadFeedUrl();loadHistory();setInterval(()=>{if($$('feedUrl').value||CU)loadFeedUrl();loadHistory()},3600000);setInterval(()=>{if(CU&&cloudReady&&!document.hidden)cloudPull()},300000);
+  addEventListener('visibilitychange',()=>{if(document.hidden)flush();else{loadHistory();if(CU&&cloudReady)cloudPull()}});addEventListener('pagehide',flush);
 }
 init();
 </script>
