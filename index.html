@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>サヤ取りチャートモニター v15</title>
+<title>サヤ取りチャートモニター v16</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -76,15 +76,18 @@ table.edt input.dt{width:104px;text-align:center}
 </style>
 </head>
 <body>
-<header><h1>📈 サヤ取りチャートモニター <small style="color:var(--mut)">v15</small></h1><input id="feedUrl" type="text" placeholder="価格シートの公開CSV URL（Googleスプレッドシート）" style="width:260px" onchange="saveSoon();loadFeedUrl()"><button class="pri" onclick="loadFeedUrl(true)">今すぐ更新</button><button onclick="pickFeed()" title="CSVまたはJSONファイルから読み込み">ファイル読込</button><span id="feedst" class="hint"></span><button onclick="cloudDlg()">☁ 同期</button><span id="cloudst" class="hint">☁ 未設定</span><input type="file" id="ff" accept=".json,.csv,.txt" hidden><input type="file" id="fb" accept=".json" hidden><button style="margin-left:auto" onclick="saveBackup()">バックアップ保存</button><button onclick="pickBackup()">バックアップ読込</button><button onclick="pasteBackup()">貼付読込</button><button onclick="resetAll()">保存データ消去</button></header>
+<header><h1>📈 サヤ取りチャートモニター <small style="color:var(--mut)">v16</small></h1><input id="feedUrl" type="text" placeholder="価格シートの公開CSV URL（Googleスプレッドシート）" style="width:260px" onchange="saveSoon();loadFeedUrl()"><button class="pri" onclick="loadFeedUrl(true)">今すぐ更新</button><button onclick="pickFeed()" title="CSVまたはJSONファイルから読み込み">ファイル読込</button><span id="feedst" class="hint"></span><button onclick="cloudDlg()">☁ 同期</button><span id="cloudst" class="hint">☁ 未設定</span><input type="file" id="ff" accept=".json,.csv,.txt" hidden><input type="file" id="fb" accept=".json" hidden><button style="margin-left:auto" onclick="saveBackup()">バックアップ保存</button><button onclick="pickBackup()">バックアップ読込</button><button onclick="pasteBackup()">貼付読込</button><button onclick="resetAll()">保存データ消去</button></header>
 <main><div id="sets" style="display:grid;gap:14px"></div><div><button class="pri" onclick="addSet()">＋ Set追加</button></div><div class="card sec" id="help"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>説明</h2><div class="sb hint" style="line-height:1.9">
 列：日付 / 始値 / 高値 / 安値 / 終値 / 出来高 / 調整後終値（ヘッダー行あり可）<br>
 単位：1口 ／ 日付は 20261006 形式 ／ 終値は元データの終値（加減値・倍率は適用外）<br>
 返済行の「最新価格」にチェックすると、返済日と終値を銘柄の最新価格で自動入力します。最新価格は、価格シートのCSV（URL欄またはファイル読込）があればそれを優先し、1時間ごとに自動更新します。無い場合は取り込んだデータの最終行を使います。CSVの形式は「銘柄コード,価格」（例: 1345,1694）を1行ずつ、3列目に日付（20261012）があれば日付も使います。<br>
 金額と終値は手入力で変更でき（枠がオレンジ＝手入力値）、変更すると建玉金額差・損益・総損益・総損益率に反映されます。空欄にすると自動計算に戻ります。<br>
-金額＝(終値−1)×数量（売）／(終値＋1)×数量（買）。<br>
-総損益＝各取引の損益の合計。<br>
-総損益率＝総損益÷(総建玉金額×率)を年率換算（÷使用日数×365。使用日数＝最初の建玉日〜最後の返済日）。<br>
+金額＝(終値−Spread)×数量（売）／(終値＋Spread)×数量（買）。Spreadは各取引（行）ごとに「Spread」欄で設定します（初期値1、建玉・返済の両方に適用）。<br>
+損益＝（建玉が売：建玉金額−返済金額／建玉が買：返済金額−建玉金額）−Fix Cost−Duration Cost。<br>
+Fix Cost：建玉と返済のそれぞれ（買・売の各取引）にかかる費用。by Value＝1回あたりの金額（建玉と返済で2回分）、by %＝（建玉金額＋返済金額）×％。<br>
+Duration Cost：建玉日から返済日までの日数にかかる費用。by Value＝1日あたりの金額×日数、by %＝建玉金額×％÷365×日数。<br>
+総損益＝各取引の損益（費用を引いた後）の合計。<br>
+Trading Number：同じ番号の取引は同じ資金サイクルとして扱い、同じ色（淡色）で表示します。総損益率（年率）＝総損益÷分母÷使用日数×365。分母＝各Trading Numberの「建玉金額の合計×率＋費用の合計」のうち最大のもの。使用日数＝全取引の最初の建玉日〜最後の返済日。<br>
 建玉金額差＝1行目の銘柄の建玉金額に対する各銘柄の差(%)。<br>
 率の初期値は34%で、上の「率」欄で変更できます。<br>
 指定日にデータが無い場合は直前の営業日の終値を使用。<br>
@@ -119,8 +122,11 @@ root.innerHTML=`
   </div></section>
 
   <section class="card sec"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>シミュレーション <button onclick="App[${N}].addTrade()">＋ 行追加</button>
-      <label class="row" style="font-weight:400;gap:4px">率 <input type="number" id="mrate" value="34" min="0" step="any" style="width:70px" onchange="App[${N}].renderSim()">%</label></h2><div class="sb">
-    <div style="overflow-x:auto"><table class="sim"><thead><tr><th>銘柄</th><th>取引</th><th>期日</th><th>売買</th><th>数量</th><th>建玉金額差</th><th>金額</th><th>損益</th><th>総損益</th><th>総損益率<br>（年率）</th><th></th></tr></thead><tbody id="sim"></tbody></table></div>
+      <label class="row" style="font-weight:400;gap:4px">率 <input type="number" id="mrate" value="34" min="0" step="any" style="width:70px" onchange="App[${N}].renderSim()">%</label>
+      <span class="row" style="margin-left:auto;gap:12px;font-weight:400">
+        <label class="row" style="gap:4px">Fix Cost <input type="number" id="fixv" value="0" min="0" step="any" style="width:80px" onchange="App[${N}].renderSim()"><select id="fixm" onchange="App[${N}].renderSim()"><option value="v">by Value</option><option value="p">by %</option></select></label>
+        <label class="row" style="gap:4px">Duration Cost <input type="number" id="durv" value="0" min="0" step="any" style="width:80px" onchange="App[${N}].renderSim()"><select id="durm" onchange="App[${N}].renderSim()"><option value="v">by Value</option><option value="p">by %</option></select></label></span></h2><div class="sb">
+    <div style="overflow-x:auto"><table class="sim"><thead><tr><th>銘柄</th><th>Trading<br>Number</th><th>取引</th><th>期日</th><th>売買</th><th>数量</th><th>建玉金額差</th><th>金額</th><th>Spread</th><th>損益</th><th>総損益</th><th>総損益率<br>（年率）</th><th></th></tr></thead><tbody id="sim"></tbody></table></div>
     <div class="stat" id="simtot"></div>
   </div></section>
 
@@ -312,28 +318,29 @@ function drawB(){
   if(cB)cB.destroy();cB=new Chart($('cB'),{type:'line',data,options:o});
 }
 let trades=[];
-function addTrade(){trades.push({sid:null,od:'',side:'売',oq:1,cd:'',cq:''});renderSim()}
+function addTrade(){trades.push({sid:null,od:'',side:'売',oq:1,cd:'',cq:'',tn:1,sp:1});renderSim()}
 function delTrade(i){trades.splice(i,1);renderSim()}
 function setT(i,k,v){const t=trades[i];
   if(k==='sid'){t.sid=(sets.find(x=>String(x.id)===v)||{}).id;t.oC=t.oA=t.cC=t.cA=''}
-  else if(['oq','cq','oA','cA','oC','cC'].includes(k)){const n=parseFloat(v);t[k]=v===''||isNaN(n)?'':n;
+  else if(['oq','cq','oA','cA','oC','cC','sp','tn'].includes(k)){const n=parseFloat(v);t[k]=v===''||isNaN(n)?(k==='sp'?1:k==='tn'?1:''):n;if(k==='sp')t.oA=t.cA='';
     if(k==='oq'||k==='oC')t.oA='';if(k==='cq'||k==='cC')t.cA=''}
   else{t[k]=v;if(k==='live')t.cC=t.cA='';if(k==='od')t.oC=t.oA='';if(k==='cd')t.cC=t.cA='';if(k==='side')t.oA=t.cA=''}
   renderSim()}
 function d8(v){const m=String(v).trim().match(/^(\d{4})\D?(\d{1,2})\D?(\d{1,2})$/);return m?`${m[1]}-${pad(m[2])}-${pad(m[3])}`:null}
 function px(ds,d){if(!ds||!d)return null;let r=null;for(const x of ds.rows){if(x.d<=d&&x.close!=null)r=x;else if(x.d>d)break}return r}
-function amt(side,c,q){return(side==='売'?c-1:c+1)*q}
+function amt(side,c,q,sp){const k=isNaN(parseFloat(sp))?1:parseFloat(sp);return(side==='売'?c-k:c+k)*q}
 const fm=n=>n.toLocaleString('ja-JP',{maximumFractionDigits:2});
 function renderSim(){
-  if(!trades.length)trades.push({sid:null,od:'',side:'売',oq:1,cd:'',cq:''});
-  let tot=0,n=0,base=0,dmin=null,dmax=null;
+  if(!trades.length)trades.push({sid:null,od:'',side:'売',oq:1,cd:'',cq:'',tn:1,sp:1});
+  let tot=0,n=0,totCost=0,dmin=null,dmax=null;const grp={};
+  const nv=id=>{const v=parseFloat($(id).value);return isNaN(v)?0:v},fixV=nv('fixv'),durV=nv('durv'),fixP=$('fixm').value==='p',durP=$('durm').value==='p';
   const has=v=>v!==''&&v!=null;
   const livePx=ds=>{if(!ds)return null;const last=ds.rows[ds.rows.length-1],code=(ds.name.match(/\d{4}[A-Z]?/)||[])[0],f=FEED[ds.name]||FEED[code]||FEED[code+'.T'];let r=last?{d:last.d,close:last.close}:null;
     if(f&&d8(f.date)&&f.close!=null&&(!r||d8(f.date)>=r.d))r={d:d8(f.date),close:+f.close};return r};
   const leg=(t,L)=>{const ds=sets.find(x=>x.id===t.sid)||sets[0],d=t[L+'d'],side=L==='o'?t.side:(t.side==='売'?'買':'売'),
     q=L==='o'?t.oq:(t.cq===''?t.oq:t.cq),lp=(L==='c'&&t.live)?livePx(ds):null,r=lp?{d:lp.d,close:lp.close}:px(ds,d8(d)),cv=t[L+'C'],av=t[L+'A'];
     const close=has(cv)?cv:(r?r.close:null);let a=null;
-    if(has(av))a=av;else if(close!=null&&q>0)a=amt(side,close,q);
+    if(has(av))a=av;else if(close!=null&&q>0)a=amt(side,close,q,t.sp);
     return{r,d,d8:lp?lp.d:d8(d),close,a,mc:has(cv),ma:has(av)}};
   const cell=(i,L,g)=>`<td class="amtc"><input type="number" step="any" class="${g.ma?'ovr':''}" placeholder="金額" value="${g.a!=null?Math.round(g.a*100)/100:''}" onchange="App[${N}].setT(${i},'${L}A',this.value)"><span class="px">終値 <input type="number" step="any" class="${g.mc?'ovr':''}" placeholder="終値" value="${g.close!=null?g.close:''}" onchange="App[${N}].setT(${i},'${L}C',this.value)">${g.r&&g.r.d!==d8(g.d)&&!g.mc?'（'+g.r.d+'）':''}${!g.r&&!g.mc&&g.d?' データなし':''}</span></td>`;
   const oa0=leg(trades[0],'o').a;
@@ -341,28 +348,35 @@ function renderSim(){
     const ds=sets.find(x=>x.id===t.sid)||sets[0];
     const cs=t.side==='売'?'買':'売',cq=t.cq===''?t.oq:t.cq;
     const lo=leg(t,'o'),lc=leg(t,'c'),oa=lo.a,ca=lc.a;
-    let pl=null;
-    if(oa!=null&&ca!=null){pl=t.side==='売'?oa-ca:ca-oa;tot+=pl;base+=oa;n++;const a1=d8(t.od),a2=lc.d8;if(a1&&(!dmin||a1<dmin))dmin=a1;if(a2&&(!dmax||a2>dmax))dmax=a2}
+    let pl=null,gross=null,cost=0,fixC=0,durC=0;
+    if(oa!=null&&ca!=null){const a1=d8(t.od),a2=lc.d8,dd=a1&&a2?Math.max(0,Math.round((ts(a2)-ts(a1))/DAY)):0;
+      gross=t.side==='売'?oa-ca:ca-oa;
+      fixC=fixP?(oa+ca)*fixV/100:fixV*2;
+      durC=durP?oa*durV/100/365*dd:durV*dd;
+      cost=fixC+durC;pl=gross-cost;tot+=pl;totCost+=cost;{const g=String(t.tn===''||t.tn==null?1:t.tn);(grp[g]=grp[g]||{oa:0,cost:0});grp[g].oa+=oa;grp[g].cost+=cost}n++;
+      if(a1&&(!dmin||a1<dmin))dmin=a1;if(a2&&(!dmax||a2>dmax))dmax=a2}
     const note=(r,d)=>r?`<span class="px">終値 ${fm(r.close)}${r.d!==d8(d)?'（'+r.d+'）':''}</span>`:(d?'<span class="px">データなし</span>':'');
     const sel=sets.map(x=>`<option value="${x.id}" ${ds&&x.id===ds.id?'selected':''}>${x.name}</option>`).join('');
     const gap=oa!=null&&oa0!=null?(i===0?'0%':((oa/oa0-1)*100).toFixed(1)+'%'):'-';
     const cls=pl==null?'':pl>=0?'pos':'neg';
-    return `<tr><td rowspan="2"><select onchange="App[${N}].setT(${i},'sid',this.value)">${sel}</select></td>
+    const tn=t.tn===''||t.tn==null?1:t.tn,bg=`style="background:hsl(${(Math.round(tn)*67+10)%360} 75% 88% / .6)"`;
+    return `<tr ${bg}><td rowspan="2"><select onchange="App[${N}].setT(${i},'sid',this.value)">${sel}</select></td><td rowspan="2"><input type="number" min="1" step="1" value="${tn}" onchange="App[${N}].setT(${i},'tn',this.value)"></td>
       <td>建玉</td><td><input type="text" placeholder="20261001" value="${t.od}" onchange="App[${N}].setT(${i},'od',this.value)"></td>
       <td><select onchange="App[${N}].setT(${i},'side',this.value)"><option ${t.side==='売'?'selected':''}>売</option><option ${t.side==='買'?'selected':''}>買</option></select></td>
       <td><input type="number" min="0" step="1" value="${t.oq}" onchange="App[${N}].setT(${i},'oq',this.value)"></td>
       <td rowspan="2">${gap}</td>
       ${cell(i,'o',lo)}
-      <td rowspan="2" class="${cls}">${pl!=null?fm(pl):'-'}</td>${i===0?'@@TOT@@':''}
+      <td rowspan="2"><input type="number" min="0" step="any" value="${t.sp==null||t.sp===''?1:t.sp}" onchange="App[${N}].setT(${i},'sp',this.value)"></td>
+      <td rowspan="2" class="${cls}">${pl!=null?fm(pl):'-'}${pl!=null&&cost?`<span class="px" title="Fix Cost ${fm(fixC)} ／ Duration Cost ${fm(durC)}">粗利 ${fm(gross)} − 費用 ${fm(cost)}</span>`:''}</td>${i===0?'@@TOT@@':''}
       <td rowspan="2"><button onclick="App[${N}].delTrade(${i})">削除</button></td></tr>
-      <tr><td>返済<label class="px"><input type="checkbox" ${t.live?'checked':''} onchange="App[${N}].setT(${i},'live',this.checked)">最新価格</label></td><td><input type="text" placeholder="20261006" value="${t.live&&lc.d8?lc.d8.replace(/-/g,''):t.cd}" ${t.live?'disabled':''} onchange="App[${N}].setT(${i},'cd',this.value)"></td>
+      <tr ${bg}><td>返済<label class="px"><input type="checkbox" ${t.live?'checked':''} onchange="App[${N}].setT(${i},'live',this.checked)">最新価格</label></td><td><input type="text" placeholder="20261006" value="${t.live&&lc.d8?lc.d8.replace(/-/g,''):t.cd}" ${t.live?'disabled':''} onchange="App[${N}].setT(${i},'cd',this.value)"></td>
       <td>${cs}</td><td><input type="number" min="0" step="1" value="${cq}" onchange="App[${N}].setT(${i},'cq',this.value)"></td>
       ${cell(i,'c',lc)}</tr>`}).join('');
-  const k=parseFloat($('mrate').value),den=base*(isNaN(k)?0:k)/100,r=den>0?tot/den:null;
+  const k=parseFloat($('mrate').value),kk=isNaN(k)?0:k;let den=0,maxTn='';Object.entries(grp).forEach(([g,v])=>{const c=v.oa*kk/100+v.cost;if(c>den){den=c;maxTn=g}});const r=den>0?tot/den:null;
   const rs=trades.length*2,cl=tot>=0?'pos':'neg';
   const days=dmin&&dmax?Math.round((ts(dmax)-ts(dmin))/DAY):0,ann=r!=null&&days>0?r/days*365:null;
   $('sim').innerHTML=html.replace('@@TOT@@',n?`<td rowspan="${rs}" class="${cl}">${fm(tot)}</td><td rowspan="${rs}" class="${cl}">${ann!=null?(ann*100).toFixed(1)+'%':'-'}<span class="px">${r!=null?(r*100).toFixed(2)+'%':'-'} ÷ ${days}日 × 365</span></td>`:`<td rowspan="${rs}">-</td><td rowspan="${rs}">-</td>`);
-  $('simtot').innerHTML=n?`<span>総建玉金額 <b>${fm(base)}</b></span><span>分母（総建玉金額×率） <b>${fm(den)}</b></span><span>使用日数 <b>${days}日</b></span><span>計算済 <b>${n}</b> 件</span>`:'';
+  $('simtot').innerHTML=n?`<span>サイクル数 <b>${Object.keys(grp).length}</b></span><span>分母（最大必要資金：Trading Number ${maxTn}） <b>${fm(den)}</b></span><span>費用合計 <b>${fm(totCost)}</b></span><span>使用日数 <b>${days}日</b></span><span>計算済 <b>${n}</b> 件</span>`:'';
   const wrap=document.querySelector(`[data-n="${N}"]`);
   if(wrap){const nm=trades.map(t=>(sets.find(x=>x.id===t.sid)||sets[0]||{}).name).filter(Boolean);
     wrap.querySelector('.ttl').textContent=nm.length?nm.join(' vs '):'銘柄未設定';wrap.querySelector('.ttl').title=nm.join(' vs ');
@@ -432,10 +446,11 @@ function sample(){
 }
 refresh();
 
-function getState(){return{sets,period,price:$('price').value,buy:$('buy').value,sell:$('sell').value,mode:$('mode').value,mrate:$('mrate').value,trades,rng}}
+function getState(){return{sets,period,price:$('price').value,buy:$('buy').value,sell:$('sell').value,mode:$('mode').value,mrate:$('mrate').value,fixv:$('fixv').value,fixm:$('fixm').value,durv:$('durv').value,durm:$('durm').value,trades,rng}}
 function setState(st){if(!st)return;
-  sets=st.sets||[];period=st.period||'D';trades=st.trades||[];rng=st.rng||null;
+  sets=st.sets||[];period=st.period||'D';trades=(st.trades||[]).map(t=>Object.assign({tn:1,sp:st.spread!=null?parseFloat(st.spread):1},t));rng=st.rng||null;
   $('price').value=st.price||'adj';$('mode').value=st.mode||'diff';if(st.mrate!=null)$('mrate').value=st.mrate;
+  [['fixv','fixv'],['fixm','fixm'],['durv','durv'],['durm','durm']].forEach(([k,id])=>{if(st[k]!=null)$(id).value=st[k]});
   [...$('pb').children].forEach(b=>b.classList.toggle('on',b.dataset.k===period));
   list();if(st.buy)$('buy').value=st.buy;if(st.sell)$('sell').value=st.sell;refresh()}
 setState(ST);
