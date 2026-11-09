@@ -96,7 +96,7 @@ Trading Number：同じ番号の取引は同じ資金サイクルとして扱い
 Export／Import：Exportは、そのSetの全ラインを1つのExcel（ラインごとに1シート、列は日付・始値・高値・安値・終値・出来高・調整後終値）に書き出します。Excelで修正して同じSetでImportすると、シート名＝ライン名として読み込まれます。同じ名前のラインがある場合は、「置き換え」か「日付ごとに追加・上書き」を選べます。<br>
 
 サヤ差チャートの印：シミュレーションの各取引の建玉日に「建＋Trading Number」（例：建1）、返済日に「返＋Trading Number」（例：返2）を、サヤ差チャート上に同じ色（Trading Numberごと）で表示します。<br>
-履歴の自動追加：GitHub Actionsが平日の日本時間9:05〜16:05に1時間ごとに、history/銘柄コード.csv（例: history/1488.csv）の最終日以降の日付・始値・高値・安値・終値・出来高を追記・更新します（当日分は16:05の更新で確定値）。ページは開いたとき・1時間ごと・画面に戻ったときにこのファイルを読み、ラインの最終日より新しい日付の行を追加します（ラインの名前に4桁の銘柄コードが必要）。ページを開かなかった間の日付もまとめて追加されます。直近7日分の行は履歴ファイルの値で更新されます。初回だけ、データ取込パネルの各ラインの「履歴CSV」で元データを書き出し、GitHubの history フォルダに銘柄コード.csv として置いてください。<br>
+履歴の自動追加：GitHub Actionsが平日の日本時間9:05〜16:05に1時間ごとに、history/銘柄コード.csv（例: history/1488.csv）の最終日以降の日付・始値・高値・安値・終値・出来高を追記・更新します（当日分は16:05の更新で確定値）。ページは開いたとき・1時間ごと・画面に戻ったときにこのファイルを読み、ラインの最終日より新しい日付の行を追加します（ラインの名前に4桁の銘柄コードが必要）。ページを開かなかった間の日付もまとめて追加されます。直近7日分の行は履歴ファイルの値で更新されますが、データ編集で手修正した行（日付の追加・上書き、値の変更）は保護され、上書きされません。履歴の値に戻したいときは、その行を削除してください。初回だけ、データ取込パネルの各ラインの「履歴CSV」で元データを書き出し、GitHubの history フォルダに銘柄コード.csv として置いてください。<br>
 データ編集：取込パネルの各ラインの「データ編集」を押すと、取り込んだデータを日付ごとに書き換えたり、日付と終値を追加／削除できます（チャート・シミュレーションに即反映）。</div></div></main>
 <script>
 const App={};
@@ -277,21 +277,22 @@ function edAfter(){drawA();renderSim();drawB();drawNav();saveSoon()}
 function edToggle(id){openEd.has(id)?openEd.delete(id):openEd.add(id);list()}
 function edMore(id){edN[id]=(edN[id]||30)+30;edRender(id)}
 function normD(v){const d=d8(v);return d&&!isNaN(Date.parse(d))?d:null}
+function pinD(s,d,nd){s.pin=(s.pin||[]).filter(x=>x!==d&&x!==nd);if(nd)s.pin.push(nd)}
 function edSet(id,d,k,v){const s=sets.find(x=>x.id===id);if(!s)return;const r=s.rows.find(x=>x.d===d);if(!r)return;
   if(k==='d'){const nd=normD(v);if(!nd){alert('日付は 20261014 の形式で入力してください');edRender(id);return}
     if(nd!==d&&s.rows.some(x=>x.d===nd)){alert(nd+' のデータは既にあります');edRender(id);return}
-    r.d=nd;s.rows.sort((a,b)=>a.d<b.d?-1:1);edRender(id);edAfter();return}
+    r.d=nd;pinD(s,d,nd);s.rows.sort((a,b)=>a.d<b.d?-1:1);edRender(id);edAfter();return}
   const n=v===''||isNaN(parseFloat(v))?null:parseFloat(v);
   if(k==='close'&&(r.adj==null||r.adj===r.close)){r.adj=n;const a=gid('ed'+id).querySelector(`input[data-d="${d}"][data-k="adj"]`);if(a)a.value=n==null?'':n}
-  r[k]=n;edAfter()}
-function edDel(id,d){const s=sets.find(x=>x.id===id);if(!s)return;if(!confirm(d+' の行を削除しますか？'))return;s.rows=s.rows.filter(x=>x.d!==d);edRender(id);edAfter()}
+  r[k]=n;pinD(s,d,d);edAfter()}
+function edDel(id,d){const s=sets.find(x=>x.id===id);if(!s)return;if(!confirm(d+' の行を削除しますか？'))return;s.rows=s.rows.filter(x=>x.d!==d);pinD(s,d,null);edRender(id);edAfter()}
 function edAdd(id){const s=sets.find(x=>x.id===id);if(!s)return;const nd=normD(gid('ea'+id).value),n=parseFloat(gid('ec'+id).value);
   if(!nd){alert('日付を 20261014 の形式で入力してください');return}
   if(isNaN(n)){alert('終値を入力してください');return}
   const r=s.rows.find(x=>x.d===nd);
   if(r){if(r.adj==null||r.adj===r.close)r.adj=n;r.close=n}
   else{s.rows.push({d:nd,open:n,high:n,low:n,close:n,vol:null,adj:n});s.rows.sort((a,b)=>a.d<b.d?-1:1)}
-  edRender(id);edAfter()}
+  pinD(s,nd,nd);edRender(id);edAfter()}
 function upd(id,k,v){sets.find(s=>s.id===id)[k]=v;refresh(k==='name')}
 function adj(id,k,v){let n=parseFloat(v);if(isNaN(n))n=k==='mul'?1:0;sets.find(s=>s.id===id)[k]=n;refresh()}
 function del(id){sets=sets.filter(s=>s.id!==id);refresh()}
@@ -493,10 +494,10 @@ function histCsv(id){const s=sets.find(x=>x.id===id);if(!s||!s.rows.length){aler
 function mergeHist(map){let ch=0;
   sets.forEach(s=>{const c=codeOf(s),txt=c&&map[c];if(!txt)return;
     const h=parseRows(txt.split(/\r?\n/).map(l=>l.split(',')));if(!h.length)return;
-    const hl=h[h.length-1].d,cut=new Date(Date.parse(hl+'T00:00:00Z')-7*864e5).toISOString().slice(0,10),last=s.rows.length?s.rows[s.rows.length-1].d:'',m=new Map(s.rows.map(r=>[r.d,r]));let c1=0;
+    const pn=new Set(s.pin||[]),hl=h[h.length-1].d,cut=new Date(Date.parse(hl+'T00:00:00Z')-7*864e5).toISOString().slice(0,10),last=s.rows.length?s.rows[s.rows.length-1].d:'',m=new Map(s.rows.map(r=>[r.d,r]));let c1=0;
     h.forEach(r=>{const e=m.get(r.d);
       if(!e){if(r.d>last){s.rows.push(r);m.set(r.d,r);c1++}}
-      else if(r.d>=cut&&(e.close!==r.close||e.adj!==r.adj)){Object.assign(e,r);c1++}});
+      else if(r.d>=cut&&!pn.has(r.d)&&(e.close!==r.close||e.adj!==r.adj)){Object.assign(e,r);c1++}});
     if(c1){s.rows.sort((a,b)=>a.d<b.d?-1:1);ch+=c1}});
   if(ch)refresh();return ch}
 return {lineCodes,mergeHist,histCsv,edToggle,edSet,edAdd,edDel,edMore,getState,addLine,pickFiles,exportXlsx,sample,appendTo,upd,del,adj,addTrade,delTrade,setT,renderSim,refresh};}
