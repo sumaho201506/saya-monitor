@@ -42,6 +42,8 @@ table.sim input[type=number]{width:70px}
 table.sim select{max-width:120px}
 .pos{color:#2da44e;font-weight:600}.neg{color:#e5484d;font-weight:600}
 .px{display:block;color:var(--mut);font-size:11px}
+.lamp{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--bd);flex:none;opacity:.55;margin:0 2px}.lamp2.ok{background:#22c55e;opacity:1}.lamp2.warn{background:#ef4444;opacity:1;box-shadow:0 0 8px 3px rgba(239,68,68,.75)}
+.lamp.on{background:#22c55e;opacity:1;box-shadow:0 0 8px 3px rgba(34,197,94,.75)}
 #nav,#nav2{width:100%;height:70px;display:block;margin-top:6px;touch-action:none;cursor:ew-resize;border:1px solid var(--bd);border-radius:6px}
 .rb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
 .rb button{padding:3px 9px;font-size:12px}
@@ -69,14 +71,14 @@ table.edt input.dt{width:104px;text-align:center}
 .note{margin-left:auto;width:min(300px,45%)}
 .sec.closed>.sb{display:none}
 .sec.closed>.sh{margin-bottom:0}
-.outer>.sh{display:grid;grid-template-columns:24px 56px minmax(0,1fr) 210px minmax(0,1.6fr) 24px;align-items:center;gap:8px}
+.outer>.sh{display:grid;grid-template-columns:24px 56px 14px 14px minmax(0,1fr) 210px minmax(0,1.6fr) 24px;align-items:center;gap:8px}
 .outer>.sh .ttl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .outer>.sh .note{width:100%;margin:0;min-width:0}
-@media(max-width:760px){.outer>.sh{grid-template-columns:24px auto minmax(0,1fr) 24px}.outer>.sh .hrate,.outer>.sh .note{grid-column:1/-1;order:2}.outer>.sh .dl{order:1}}
+@media(max-width:760px){.outer>.sh{grid-template-columns:24px auto 14px 14px minmax(0,1fr) 24px}.outer>.sh .hrate,.outer>.sh .note{grid-column:1/-1;order:2}.outer>.sh .dl{order:1}}
 </style>
 </head>
 <body>
-<header><h1>📈 サヤ取りチャートモニター <small style="color:var(--mut)">v17</small></h1><input id="feedUrl" type="text" placeholder="価格シートの公開CSV URL（Googleスプレッドシート）" style="width:260px" onchange="saveSoon();loadFeedUrl()"><button class="pri" onclick="loadFeedUrl(true)">今すぐ更新</button><button onclick="pickFeed()" title="CSVまたはJSONファイルから読み込み">ファイル読込</button><span id="feedst" class="hint"></span><button onclick="cloudDlg()">☁ 同期</button><span id="cloudst" class="hint">☁ 未設定</span><input type="file" id="ff" accept=".json,.csv,.txt" hidden><input type="file" id="fb" accept=".json" hidden><button style="margin-left:auto" onclick="saveBackup()">バックアップ保存</button><button onclick="pickBackup()">バックアップ読込</button><button onclick="pasteBackup()">貼付読込</button><button onclick="resetAll()">保存データ消去</button></header>
+<header><h1>📈 サヤ取りチャートモニター <small style="color:var(--mut)">v21</small></h1><input id="feedUrl" type="text" placeholder="価格シートの公開CSV URL（Googleスプレッドシート）" style="width:260px" onchange="saveSoon();loadFeedUrl()"><button class="pri" onclick="loadFeedUrl(true)">今すぐ更新</button><button onclick="pickFeed()" title="CSVまたはJSONファイルから読み込み">ファイル読込</button><span id="feedst" class="hint"></span><button onclick="cloudDlg()">☁ 同期</button><span id="cloudst" class="hint">☁ 未設定</span><input type="file" id="ff" accept=".json,.csv,.txt" hidden><input type="file" id="fb" accept=".json" hidden><button style="margin-left:auto" onclick="saveBackup()">バックアップ保存</button><button onclick="pickBackup()">バックアップ読込</button><button onclick="pasteBackup()">貼付読込</button><button onclick="resetAll()">保存データ消去</button></header>
 <main><div id="sets" style="display:grid;gap:14px"></div><div><button class="pri" onclick="addSet()">＋ Set追加</button></div><div class="card sec" id="help"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>説明</h2><div class="sb hint" style="line-height:1.9">
 列：日付 / 始値 / 高値 / 安値 / 終値 / 出来高 / 調整後終値（ヘッダー行あり可）<br>
 単位：1口 ／ 日付は 20261006 形式 ／ 終値は元データの終値（加減値・倍率は適用外）<br>
@@ -95,6 +97,9 @@ Trading Number：同じ番号の取引は同じ資金サイクルとして扱い
 
 Export／Import：Exportは、そのSetの全ラインを1つのExcel（ラインごとに1シート、列は日付・始値・高値・安値・終値・出来高・調整後終値）に書き出します。Excelで修正して同じSetでImportすると、シート名＝ライン名として読み込まれます。同じ名前のラインがある場合は、「置き換え」か「日付ごとに追加・上書き」を選べます。<br>
 
+サヤ差チャートの移動平均・σ：チャートB上の「移動平均・σ」にチェックすると、サヤの移動平均（赤）と±1σ（緑）・±2σ（青）を表示します。「期間」は計算に使うデータ点の数（日足なら日数、初期値75）で、移動平均とσは、その期間の平均と標準偏差（母標準偏差）です。表示期間より前のデータも計算に使うので、ズームしても線の位置は変わりません。データが期間に足りない先頭部分は線が出ません。「σ位置」は最新のサヤが移動平均から何σ離れているかです。<br>
+タイミング灯：Setのタイトル横の2つ目の灯です。データ取込パネルの各ラインに「権利確定日」を入れ（毎年同じ日は月日4桁 0110,0410,0710,1010、特定の日は8桁 20261110、カンマ区切り）、チャートBの「権利日 X 日前」にXを入れます。サヤ差チャートの買い・売りどちらかの銘柄の次の権利確定日まで X日以内になると、緑から赤に変わります（日本時間の日付、権利確定日当日まで赤）。権利付き最終日で知らせたいときは、その日付を入力してください。入力が無いときは灰色です。<br>
+新建・返済の目安：青線に到達した最初の点に、緑の「〇↓」（上側＝サヤ縮小狙い）または「〇↑」（下側＝サヤ拡大狙い）、返済の目安に灰色の「〇」を表示します。返済の目安は「移動平均線に戻る」か「反対側の青線に到達」を選べます。チェックボックスの横の数字は、表示期間内の新建の回数です。Setのタイトルは、サヤ差チャートの買い・売りの銘柄（「買い銘柄 vs 売り銘柄」）です。<br>
 サヤ差チャートの印：シミュレーションの各取引の建玉日に「建＋Trading Number」（例：建1）、返済日に「返＋Trading Number」（例：返2）を、サヤ差チャート上に同じ色（Trading Numberごと）で表示します。<br>
 履歴の自動追加：GitHub Actionsが平日の日本時間9:05〜16:05に1時間ごとに、history/銘柄コード.csv（例: history/1488.csv）の最終日以降の日付・始値・高値・安値・終値・出来高を追記・更新します（当日分は16:05の更新で確定値）。ページは開いたとき・1時間ごと・画面に戻ったときにこのファイルを読み、ラインの最終日より新しい日付の行を追加します（ラインの名前に4桁の銘柄コードが必要）。ページを開かなかった間の日付もまとめて追加されます。直近7日分の行は履歴ファイルの値で更新されますが、データ編集で手修正した行（日付の追加・上書き、値の変更）は保護され、上書きされません。履歴の値に戻したいときは、その行を削除してください。初回だけ、データ取込パネルの各ラインの「履歴CSV」で元データを書き出し、GitHubの history フォルダに銘柄コード.csv として置いてください。<br>
 データ編集：取込パネルの各ラインの「データ編集」を押すと、取り込んだデータを日付ごとに書き換えたり、日付と終値を追加／削除できます（チャート・シミュレーションに即反映）。</div></div></main>
@@ -137,6 +142,11 @@ root.innerHTML=`
       買い <select id="buy"></select>
       売り <select id="sell"></select>
       <select id="mode"><option value="diff">差（買−売）</option><option value="ratio">比率（買÷売）</option></select>
+      <label class="row" style="gap:4px"><input type="checkbox" id="bandon" checked onchange="App[${N}].redrawB()">移動平均・帯</label>
+      <label class="row" style="gap:4px">期間 <input type="number" id="bandn" value="75" min="2" step="1" style="width:64px" onchange="App[${N}].redrawB()"></label>
+      <label class="row" style="gap:4px">幅 <select id="bandm" onchange="App[${N}].redrawB()"><option value="s">σ倍</option><option value="v">値</option><option value="p">％</option></select><input type="number" id="bandw" value="2" min="0" step="any" style="width:70px" onchange="App[${N}].redrawB()"></label>
+      <label class="row" style="gap:4px"><input type="checkbox" id="sigon" checked onchange="App[${N}].redrawB()">新建・返済の目安</label><label class="row" style="gap:4px" title="権利確定日のX日前から、Setのタイミング灯が赤になります">権利日 <input type="number" id="recx" value="3" min="0" step="1" style="width:56px" onchange="App[${N}].redrawB()">日前</label><b id="signum" title="表示期間内の新建（〇↑・〇↓）の回数" style="min-width:18px">0</b>
+      <select id="sigx" onchange="App[${N}].redrawB()" title="返済の目安"><option value="m">返済：移動平均線に戻る</option><option value="o">返済：反対側の青線に到達</option></select>
     </div>
     <div class="cv"><canvas id="cB"></canvas></div>
     <canvas id="nav2"></canvas>
@@ -253,6 +263,7 @@ function list(){
     <small id="sm${s.id}">${sumTxt(s)}</small>
     <label>加減値 <input type="number" step="any" value="${s.add}" onchange="App[${N}].adj(${s.id},'add',this.value)"></label>
     <label>倍率 <input type="number" step="any" value="${s.mul}" onchange="App[${N}].adj(${s.id},'mul',this.value)"></label>
+    <label title="権利確定日。毎年同じ日は月日4桁（例 0110,0410）、特定の日は8桁（例 20261110）。カンマ区切り">権利確定日 <input type="text" style="width:170px" placeholder="0110,0410,0710,1010" value="${(s.rec||'').replace(/"/g,'&quot;')}" onchange="App[${N}].upd(${s.id},'rec',this.value)"></label>
     <button onclick="App[${N}].appendTo(${s.id})">データ追加</button>
     <button class="${openEd.has(s.id)?'on':''}" onclick="App[${N}].edToggle(${s.id})">データ編集</button>
     <button title="GitHubの history フォルダに置く履歴CSV（初回の元データ用）" onclick="App[${N}].histCsv(${s.id})">履歴CSV</button>
@@ -311,32 +322,80 @@ function drawA(){
 }
 function drawB(){
   const b=sets.find(s=>String(s.id)===$('buy').value),sl=sets.find(s=>String(s.id)===$('sell').value);
-  let labels=[],vals=[],txt='ライン2つ以上を取り込むと表示されます';
+  let labels=[],vals=[],bands=null,sigv=[],lamp=null,txt='ライン2つ以上を取り込むと表示されます';
+  const bm=$('bandm').value,bw=parseFloat($('bandw').value),W=isNaN(bw)||bw<0?2:bw,BN=Math.max(2,parseInt($('bandn').value)||75);
   if(b&&sl&&b!==sl){
     const mb=series(b),ms=series(sl),ratio=$('mode').value==='ratio';
-    labels=fl([...mb.keys()].filter(k=>ms.has(k))).sort();
-    vals=labels.map(k=>ratio?mb.get(k)/ms.get(k):mb.get(k)-ms.get(k));
+    const allK=[...mb.keys()].filter(k=>ms.has(k)).sort(),fv=allK.map(k=>ratio?mb.get(k)/ms.get(k):mb.get(k)-ms.get(k));
+    labels=fl(allK);const ix=new Map(allK.map((k,i)=>[k,i]));
+    vals=labels.map(l=>fv[ix.get(l)]);
+    const S1=[0],S2=[0],M=[],SD=[],UP=[],LO=[];
+    fv.forEach((v,i)=>{S1.push(S1[i]+v);S2.push(S2[i]+v*v)});
+    fv.forEach((v,i)=>{if(i<BN-1){M.push(null);SD.push(null);UP.push(null);LO.push(null);return}
+      const m=(S1[i+1]-S1[i+1-BN])/BN,sd=Math.sqrt(Math.max(0,(S2[i+1]-S2[i+1-BN])/BN-m*m)),w=bm==='s'?W*sd:bm==='p'?Math.abs(m)*W/100:W;
+      M.push(m);SD.push(sd);UP.push(m+w);LO.push(m-w)});
+    const sig=[],sx=$('sigx').value;let st=0,lockU=false,lockD=false;
+    fv.forEach((v,i)=>{if(M[i]==null)return;
+      if(st===0){if(lockU&&v>LO[i])lockU=false;if(lockD&&v<UP[i])lockD=false;
+        if(!lockD&&v>=UP[i]){st=1;sig.push({i,t:'d'})}else if(!lockU&&v<=LO[i]){st=-1;sig.push({i,t:'u'})}}
+      else if(st===1&&(sx==='o'?v<=LO[i]:v<=M[i])){st=0;if(sx==='o')lockU=true;sig.push({i,t:'r'})}
+      else if(st===-1&&(sx==='o'?v>=UP[i]:v>=M[i])){st=0;if(sx==='o')lockD=true;sig.push({i,t:'r'})}});
+    const pos=new Map(labels.map((l,j)=>[ix.get(l),j]));
+    sigv=sig.filter(x=>pos.has(x.i)).map(x=>({k:pos.get(x.i),y:fv[x.i],t:x.t}));
+    const g=l=>labels.map(l2=>l[ix.get(l2)]);
+    bands={N:BN,mm:g(M),ss:g(SD),up:g(UP),lo:g(LO)};
+    const li=fv.length-1;
+    if(UP[li]!=null){const up=fv[li]>=UP[li],lo=fv[li]<=LO[li];lamp={on:up||lo,tip:`${allK[li]} サヤ ${fv[li].toLocaleString('ja-JP',{maximumFractionDigits:4})}（`+(up?'上側ライン到達':lo?'下側ライン到達':'ライン内')+'）'}}
     if(vals.length){const last=vals[vals.length-1],mx=Math.max(...vals),mn=Math.min(...vals),av=vals.reduce((a,c)=>a+c,0)/vals.length,f=x=>x.toLocaleString('ja-JP',{maximumFractionDigits:ratio?4:2});
-      txt=`<span>最新 <b>${f(last)}</b></span><span>平均 <b>${f(av)}</b></span><span>最大 <b>${f(mx)}</b></span><span>最小 <b>${f(mn)}</b></span><span>前回比 <b>${vals.length>1?f(last-vals[vals.length-2]):'-'}</b></span>`}
+      txt=`<span>最新 <b>${f(last)}</b></span><span>平均 <b>${f(av)}</b></span><span>最大 <b>${f(mx)}</b></span><span>最小 <b>${f(mn)}</b></span><span>前回比 <b>${vals.length>1?f(last-vals[vals.length-2]):'-'}</b></span>`;
+      const q=vals.length-1,m=bands.mm[q],sd=bands.ss[q];if(m!=null&&sd>0){const z=(last-m)/sd;txt+=`<span>σ位置 <b>${z>=0?'+':''}${z.toFixed(2)}σ</b></span>`}}
     else txt='共通の日付がありません'
   }
   $('stat').innerHTML=txt;
-  const o=opts();o.plugins.legend.display=true;
-  const data={labels,datasets:[{label:`サヤ（${b?b.name:''} 買 / ${sl?sl.name:''} 売）`,data:vals,borderColor:'#f5a524',backgroundColor:'rgba(245,165,36,.15)',fill:true,tension:0}]};
+  $('signum').textContent=sigv.filter(x=>x.t!=='r').length;
+  recLamp();
+  const wrap=document.querySelector(`[data-n="${N}"]`),lp=wrap&&wrap.querySelector('.lamp');
+  if(wrap){const tt=wrap.querySelector('.ttl'),nmv=b&&sl?`${b.name} vs ${sl.name}`:(b||sl?(b||sl).name:'銘柄未設定');tt.textContent=nmv;tt.title=nmv}
+  if(lp){lp.classList.toggle('on',!!(lamp&&lamp.on));lp.title=lamp?lamp.tip:'サヤ差の移動平均ラインを計算できません'}
+  const o=opts();o.plugins.legend.display=true;o.plugins.legend.labels.padding=20;o.elements.point.hoverRadius=0;o.plugins.tooltip={enabled:false};
+  const showB=$('bandon').checked&&bands;
+  const nm=`サヤ（${b?b.name:''} 買 / ${sl?sl.name:''} 売）`;
+  const data={labels,datasets:[showB?{label:nm,data:vals,borderColor:css('--tx')||'#444',backgroundColor:'rgba(0,0,0,0)',fill:false,tension:0,borderWidth:2}
+    :{label:nm,data:vals,borderColor:'#f5a524',backgroundColor:'rgba(245,165,36,.15)',fill:true,tension:0}]};
+  if(showB){const U={D:'日',W:'週',M:'月',Y:'年'}[period]||'';
+    const ln=(label,color,arr,w)=>data.datasets.push({label,data:arr,borderColor:color,backgroundColor:color,fill:false,tension:0,borderWidth:w});
+    ln(`サヤ移動平均(${bands.N}${U})`,'#8e24aa',bands.mm,2.4);
+    if(bm==='s'){const k=W;ln('+'+k+'σ','#2f6bff',bands.up,1.3);ln('+1σ','#43a047',bands.mm.map((m,i)=>m==null?null:m+bands.ss[i]),1.1);ln('-1σ','#43a047',bands.mm.map((m,i)=>m==null?null:m-bands.ss[i]),1.1);ln('-'+k+'σ','#2f6bff',bands.lo,1.3)}
+    else{const t=bm==='p'?W+'%':W;ln('+'+t,'#2f6bff',bands.up,1.3);ln('-'+t,'#2f6bff',bands.lo,1.3)}}
   const mk=[];
   if(labels.length&&vals.length){const T=labels.map(kts);
     const at=ds=>{const d=d8(ds);if(!d)return -1;const t=ts(d);let k=-1;for(let j=0;j<T.length;j++){if(T[j]<=t)k=j;else break}return k};
     const cnt={};
     trMarks.forEach(m=>[['建',m.od],['返',m.cd]].forEach(([w,d])=>{const k=at(d);if(k<0)return;if(k===T.length-1&&ts(d8(d))>T[k]+(period==='Y'?366:period==='M'?31:period==='W'?7:0)*DAY)return;
       cnt[w+k]=(cnt[w+k]||0)+1;mk.push({k,y:vals[k],txt:w+m.tn,h:(Math.round(m.tn)*67+10)%360,up:w==='建',n:cnt[w+k]-1})}))}
-  const plug={id:'trm',afterDatasetsDraw(ch){const g=ch.ctx,xs=ch.scales.x,ys=ch.scales.y;if(!xs||!ys)return;
+  const sg=$('sigon').checked?sigv:[];
+  const plug={id:'trm',
+    afterEvent(ch,args){const e=args.event,ca=ch.chartArea;if(!ca)return;let h=-1;
+      if(e.type!=='mouseout'&&e.x>=ca.left&&e.x<=ca.right&&e.y>=ca.top&&e.y<=ca.bottom&&labels.length){h=Math.min(labels.length-1,Math.max(0,Math.round(ch.scales.x.getValueForPixel(e.x))))}
+      if(ch.$hov!==h){ch.$hov=h;args.changed=true}},
+    afterDatasetsDraw(ch){const g=ch.ctx,xs=ch.scales.x,ys=ch.scales.y,ca=ch.chartArea;if(!xs||!ys)return;
     g.save();g.font='bold 11px sans-serif';g.textAlign='center';g.textBaseline='middle';
+    sg.forEach(m=>{const x=xs.getPixelForValue(m.k),y=ys.getPixelForValue(m.y);if(isNaN(x)||isNaN(y)||x<ca.left-1||x>ca.right+1)return;
+      const c=m.t==='r'?'#e53935':'#16a34a';g.lineWidth=2.6;g.strokeStyle=c;g.beginPath();g.arc(x,y,3,0,7);g.stroke();
+      if(m.t!=='r'){g.font='900 9px sans-serif';g.fillStyle=c;g.textAlign='left';g.fillText(m.t==='u'?'↑':'↓',x+5,y);g.textAlign='center'}});
+    g.font='bold 11px sans-serif';
     mk.forEach(m=>{const x=xs.getPixelForValue(m.k),y=ys.getPixelForValue(m.y);if(isNaN(x)||isNaN(y)||x<xs.left-1||x>xs.right+1)return;
       const w=g.measureText(m.txt).width+8,hh=16,by=m.up?y-14-hh/2-m.n*(hh+1):y+14+hh/2+m.n*(hh+1);
       g.strokeStyle=`hsl(${m.h} 65% 40%)`;g.lineWidth=1;g.beginPath();g.moveTo(x,y);g.lineTo(x,by+(m.up?hh/2:-hh/2));g.stroke();
       g.fillStyle=`hsl(${m.h} 65% 40%)`;g.beginPath();g.arc(x,y,3,0,7);g.fill();
       g.fillStyle=`hsl(${m.h} 80% 90%)`;g.beginPath();g.roundRect(x-w/2,by-hh/2,w,hh,4);g.fill();g.stroke();
-      g.fillStyle=`hsl(${m.h} 70% 25%)`;g.fillText(m.txt,x,by+.5)});g.restore()}};
+      g.fillStyle=`hsl(${m.h} 70% 25%)`;g.fillText(m.txt,x,by+.5)});
+    const h=ch.$hov;if(h!=null&&h>=0&&labels[h]!=null){const x=xs.getPixelForValue(h);
+      g.strokeStyle='rgba(128,128,128,.55)';g.lineWidth=1;g.setLineDash([4,3]);g.beginPath();g.moveTo(x,ca.top);g.lineTo(x,ca.bottom);g.stroke();g.setLineDash([]);
+      const t=String(labels[h]);g.font='bold 12px sans-serif';const w=g.measureText(t).width+14,px=Math.min(ca.right-w/2,Math.max(ca.left+w/2,x)),py=ca.top+13;
+      g.fillStyle=css('--card')||'#fff';g.strokeStyle=css('--bd')||'#999';g.beginPath();g.roundRect(px-w/2,py-10,w,20,5);g.fill();g.stroke();
+      g.fillStyle=css('--tx')||'#222';g.fillText(t,px,py+.5)}
+    g.restore()}};
   if(cB)cB.destroy();cB=new Chart($('cB'),{type:'line',data,options:o,plugins:[plug]});
 }
 let trades=[],trMarks=[],trMarksJs='';const f10iso=t=>new Date(t).toISOString().slice(0,10);
@@ -403,7 +462,6 @@ function renderSim(){
     const js=JSON.stringify(mm);if(js!==trMarksJs){trMarksJs=js;trMarks=mm;drawB()}}
   const wrap=document.querySelector(`[data-n="${N}"]`);
   if(wrap){const nm=trades.map(t=>(sets.find(x=>x.id===t.sid)||sets[0]||{}).name).filter(Boolean);
-    wrap.querySelector('.ttl').textContent=nm.length?nm.join(' vs '):'銘柄未設定';wrap.querySelector('.ttl').title=nm.join(' vs ');
     const hr=wrap.querySelector('.hrate');hr.textContent=ann!=null?`総損益率（年率） ${(ann*100).toFixed(1)}%`:'';hr.className='hrate '+(ann!=null&&ann<0?'neg':'pos')}
   saveSoon();
 }
@@ -478,10 +536,10 @@ function sample(){
 }
 refresh();
 
-function getState(){return{sets,period,price:$('price').value,buy:$('buy').value,sell:$('sell').value,mode:$('mode').value,mrate:$('mrate').value,fixv:$('fixv').value,fixm:$('fixm').value,durv:$('durv').value,durm:$('durm').value,trades,rng}}
+function getState(){return{sets,period,price:$('price').value,buy:$('buy').value,sell:$('sell').value,mode:$('mode').value,mrate:$('mrate').value,bandon:$('bandon').checked,bandn:$('bandn').value,bandm:$('bandm').value,bandw:$('bandw').value,sigon:$('sigon').checked,sigx:$('sigx').value,recx:$('recx').value,fixv:$('fixv').value,fixm:$('fixm').value,durv:$('durv').value,durm:$('durm').value,trades,rng}}
 function setState(st){if(!st)return;
   sets=st.sets||[];period=st.period||'D';trades=(st.trades||[]).map(t=>Object.assign({tn:1,sp:st.spread!=null?parseFloat(st.spread):1},t));rng=st.rng||null;
-  $('price').value=st.price||'adj';$('mode').value=st.mode||'diff';if(st.mrate!=null)$('mrate').value=st.mrate;
+  $('price').value=st.price||'adj';$('mode').value=st.mode||'diff';if(st.mrate!=null)$('mrate').value=st.mrate;if(st.bandon!=null)$('bandon').checked=!!st.bandon;if(st.bandn)$('bandn').value=st.bandn;if(st.bandm)$('bandm').value=st.bandm;if(st.bandw!=null&&st.bandw!=='')$('bandw').value=st.bandw;if(st.sigon!=null)$('sigon').checked=!!st.sigon;if(st.sigx)$('sigx').value=st.sigx;if(st.recx!=null&&st.recx!=='')$('recx').value=st.recx;
   [['fixv','fixv'],['fixm','fixm'],['durv','durv'],['durm','durm']].forEach(([k,id])=>{if(st[k]!=null)$(id).value=st[k]});
   [...$('pb').children].forEach(b=>b.classList.toggle('on',b.dataset.k===period));
   list();if(st.buy)$('buy').value=st.buy;if(st.sell)$('sell').value=st.sell;refresh()}
@@ -500,7 +558,21 @@ function mergeHist(map){let ch=0;
       else if(r.d>=cut&&!pn.has(r.d)&&(e.close!==r.close||e.adj!==r.adj)){Object.assign(e,r);c1++}});
     if(c1){s.rows.sort((a,b)=>a.d<b.d?-1:1);ch+=c1}});
   if(ch)refresh();return ch}
-return {lineCodes,mergeHist,histCsv,edToggle,edSet,edAdd,edDel,edMore,getState,addLine,pickFiles,exportXlsx,sample,appendTo,upd,del,adj,addTrade,delTrade,setT,renderSim,refresh};}
+function recDates(str,today){const out=[],y=+today.slice(0,4);
+  String(str||'').split(/[,\s、，]+/).forEach(tk=>{tk=tk.replace(/[\/\-.]/g,'');
+    if(/^\d{8}$/.test(tk))out.push(`${tk.slice(0,4)}-${tk.slice(4,6)}-${tk.slice(6,8)}`);
+    else if(/^\d{4}$/.test(tk))[y-1,y,y+1].forEach(yy=>out.push(`${yy}-${tk.slice(0,2)}-${tk.slice(2)}`))});
+  return out.filter(d=>!isNaN(Date.parse(d)))}
+function recLamp(){const wrap=document.querySelector(`[data-n="${N}"]`),lp=wrap&&wrap.querySelector('.lamp2');if(!lp)return;
+  const b=sets.find(s=>String(s.id)===$('buy').value),sl=sets.find(s=>String(s.id)===$('sell').value),ls=[...new Set([b,sl].filter(Boolean))];
+  const today=new Date(Date.now()+9*36e5).toISOString().slice(0,10),X=Math.max(0,parseInt($('recx').value)||0),tip=[];let any=false,warn=false;
+  ls.forEach(l=>{const ds=recDates(l.rec,today).map(d=>[d,Math.round((Date.parse(d)-Date.parse(today))/864e5)]).filter(a=>a[1]>=0).sort((a,c)=>a[1]-c[1]);
+    if(!ds.length){tip.push(`${l.name}: 権利確定日が未入力`);return}
+    any=true;const [d,n]=ds[0];if(n<=X)warn=true;tip.push(`${l.name}: 次回 ${d}（あと${n}日）`)});
+  lp.classList.toggle('ok',any&&!warn);lp.classList.toggle('warn',any&&warn);
+  lp.title=`タイミング灯（権利確定日の${X}日前から赤）\n`+(tip.join('\n')||'銘柄がありません')}
+function redrawB(){drawB();saveSoon()}
+return {recLamp,redrawB,lineCodes,mergeHist,histCsv,edToggle,edSet,edAdd,edDel,edMore,getState,addLine,pickFiles,exportXlsx,sample,appendTo,upd,del,adj,addTrade,delTrade,setT,renderSim,refresh};}
 
 let ready=false,tmr=0,FEED={},FEEDAT='',nextN=1;
 const $$=id=>document.getElementById(id);
@@ -554,7 +626,7 @@ function tg(b){const w=b.closest('.sec'),c=w.classList.toggle('closed');b.textCo
 function renumber(){document.querySelectorAll('.outer').forEach((w,k)=>{const L=letters(k),c=w.querySelectorAll('.cn');w.querySelector('.snum').textContent='Set '+(k+1);
   if(c[0])c[0].textContent='チャート '+L[0]+'（価格）';if(c[1])c[1].textContent='チャート '+L[1]+'（サヤ差）'})}
 function mkSet(n,st,note,closed){const k=document.querySelectorAll('.outer').length;
-  document.getElementById('sets').insertAdjacentHTML('beforeend',`<div class="outer sec" data-n="${n}"><div class="sh"><button class="tb" onclick="tg(this)">−</button><b class="snum">Set ${k+1}</b><span class="ttl"></span><span class="hrate"></span><input type="text" class="note" placeholder="メモ（自由記入）" oninput="saveSoon()"><button class="tb dl" title="このSetを削除" onclick="delSet(this)">✕</button></div><div class="sb"><div class="inner" id="set${n}"></div></div></div>`);
+  document.getElementById('sets').insertAdjacentHTML('beforeend',`<div class="outer sec" data-n="${n}"><div class="sh"><button class="tb" onclick="tg(this)">−</button><b class="snum">Set ${k+1}</b><span class="lamp" title=""></span><span class="lamp lamp2" title=""></span><span class="ttl"></span><span class="hrate"></span><input type="text" class="note" placeholder="メモ（自由記入）" oninput="saveSoon()"><button class="tb dl" title="このSetを削除" onclick="delSet(this)">✕</button></div><div class="sb"><div class="inner" id="set${n}"></div></div></div>`);
   const w=document.querySelector(`.outer[data-n="${n}"]`);w.querySelector('.note').value=note||'';
   App[n]=makeSet(n,letters(k),st);
   [w,...w.querySelectorAll('.sec')].forEach((x,j)=>{if(closed&&closed[j]){x.classList.add('closed');const b=x.querySelector(':scope>.sh>.tb');if(b)b.textContent='+'}})}
@@ -670,8 +742,8 @@ async function init(){
   ready=true;
   if(CM.adopt){CM.struct=JSON.stringify(structOf());CM.adopt=false;await kvPut('meta',CM)}
   await cloudInit();
-  if($$('feedUrl').value||CU)loadFeedUrl();loadHistory();setInterval(()=>{if($$('feedUrl').value||CU)loadFeedUrl();loadHistory()},3600000);setInterval(()=>{if(CU&&cloudReady&&!document.hidden)cloudPull()},300000);
-  addEventListener('visibilitychange',()=>{if(document.hidden)flush();else{loadHistory();if(CU&&cloudReady)cloudPull()}});addEventListener('pagehide',flush);
+  if($$('feedUrl').value||CU)loadFeedUrl();loadHistory();setInterval(()=>{if($$('feedUrl').value||CU)loadFeedUrl();loadHistory();Object.values(App).forEach(a=>a.recLamp())},3600000);setInterval(()=>{if(CU&&cloudReady&&!document.hidden)cloudPull()},300000);
+  addEventListener('visibilitychange',()=>{if(document.hidden)flush();else{loadHistory();Object.values(App).forEach(a=>a.recLamp());if(CU&&cloudReady)cloudPull()}});addEventListener('pagehide',flush);
 }
 init();
 </script>
