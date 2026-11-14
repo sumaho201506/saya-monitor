@@ -36,13 +36,14 @@ button.on{background:var(--pri);border-color:var(--pri);color:#fff}
 .cv{position:relative;height:340px}
 table.sim{width:100%;border-collapse:collapse;text-align:center;font-variant-numeric:tabular-nums}
 table.sim th,table.sim td{border:1px solid var(--bd);padding:4px 6px}
-table.sim th{background:var(--bg);font-weight:600;font-size:12px}
+table.sim th{position:sticky;top:0;z-index:2;background:var(--bg);font-weight:600;font-size:12px}
 table.sim input[type=text],table.sim input[type=number]{width:96px;text-align:center}
 table.sim input[type=number]{width:70px}
 table.sim select{max-width:120px}
 .pos{color:#2da44e;font-weight:600}.neg{color:#e5484d;font-weight:600}
 .px{display:block;color:var(--mut);font-size:11px}
-.lamp{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--bd);flex:none;opacity:.55;margin:0 2px}.lamp2.ok{background:#22c55e;opacity:1}.lamp2.warn{background:#ef4444;opacity:1;box-shadow:0 0 8px 3px rgba(239,68,68,.75)}
+.lamp{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--bd);flex:none;opacity:.55;margin:0 2px}.cfgbtn{margin-left:auto;font-size:12px;padding:3px 10px}
+.lamp2.ok{background:#22c55e;opacity:1}.lamp2.warn{background:#ef4444;opacity:1;box-shadow:0 0 8px 3px rgba(239,68,68,.75)}
 .lamp.on{background:#22c55e;opacity:1;box-shadow:0 0 8px 3px rgba(34,197,94,.75)}
 #nav,#nav2{width:100%;height:70px;display:block;margin-top:6px;touch-action:none;cursor:ew-resize;border:1px solid var(--bd);border-radius:6px}
 .rb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
@@ -71,14 +72,17 @@ table.edt input.dt{width:104px;text-align:center}
 .note{margin-left:auto;width:min(300px,45%)}
 .sec.closed>.sb{display:none}
 .sec.closed>.sh{margin-bottom:0}
-.outer>.sh{display:grid;grid-template-columns:24px 56px 14px 14px minmax(0,1fr) 210px minmax(0,1.6fr) 24px;align-items:center;gap:8px}
+.outer>.sh{display:grid;grid-template-columns:24px 56px 14px 14px fit-content(38%) max-content minmax(0,1fr) 24px;align-items:center;gap:8px}
 .outer>.sh .ttl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.outer>.sh .snum,.outer>.sh .ttl,.outer>.sh .hrate{cursor:grab;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.outer.dragging{opacity:.92;box-shadow:0 10px 30px rgba(0,0,0,.35);position:relative;z-index:50}
+body.dragb,body.dragb *{cursor:grabbing!important;-webkit-user-select:none;user-select:none}
 .outer>.sh .note{width:100%;margin:0;min-width:0}
 @media(max-width:760px){.outer>.sh{grid-template-columns:24px auto 14px 14px minmax(0,1fr) 24px}.outer>.sh .hrate,.outer>.sh .note{grid-column:1/-1;order:2}.outer>.sh .dl{order:1}}
 </style>
 </head>
 <body>
-<header><h1>📈 サヤ取りチャートモニター <small style="color:var(--mut)">v21</small></h1><input id="feedUrl" type="text" placeholder="価格シートの公開CSV URL（Googleスプレッドシート）" style="width:260px" onchange="saveSoon();loadFeedUrl()"><button class="pri" onclick="loadFeedUrl(true)">今すぐ更新</button><button onclick="pickFeed()" title="CSVまたはJSONファイルから読み込み">ファイル読込</button><span id="feedst" class="hint"></span><button onclick="cloudDlg()">☁ 同期</button><span id="cloudst" class="hint">☁ 未設定</span><input type="file" id="ff" accept=".json,.csv,.txt" hidden><input type="file" id="fb" accept=".json" hidden><button style="margin-left:auto" onclick="saveBackup()">バックアップ保存</button><button onclick="pickBackup()">バックアップ読込</button><button onclick="pasteBackup()">貼付読込</button><button onclick="resetAll()">保存データ消去</button></header>
+<header><h1>📈 サヤ取りチャートモニター <small style="color:var(--mut)">v24</small></h1><input id="feedUrl" type="text" placeholder="価格シートの公開CSV URL（Googleスプレッドシート）" style="width:260px" onchange="saveSoon();loadFeedUrl()"><button class="pri" onclick="loadFeedUrl(true)">今すぐ更新</button><button onclick="pickFeed()" title="CSVまたはJSONファイルから読み込み">ファイル読込</button><span id="feedst" class="hint"></span><button onclick="cloudDlg()">☁ 同期</button><span id="cloudst" class="hint">☁ 未設定</span><input type="file" id="ff" accept=".json,.csv,.txt" hidden><input type="file" id="fb" accept=".json" hidden><button style="margin-left:auto" onclick="saveBackup()">バックアップ保存</button><button onclick="pickBackup()">バックアップ読込</button><button onclick="pasteBackup()">貼付読込</button><button onclick="resetAll()">保存データ消去</button></header>
 <main><div id="sets" style="display:grid;gap:14px"></div><div><button class="pri" onclick="addSet()">＋ Set追加</button></div><div class="card sec" id="help"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>説明</h2><div class="sb hint" style="line-height:1.9">
 列：日付 / 始値 / 高値 / 安値 / 終値 / 出来高 / 調整後終値（ヘッダー行あり可）<br>
 単位：1口 ／ 日付は 20261006 形式 ／ 終値は元データの終値（加減値・倍率は適用外）<br>
@@ -97,25 +101,61 @@ Trading Number：同じ番号の取引は同じ資金サイクルとして扱い
 
 Export／Import：Exportは、そのSetの全ラインを1つのExcel（ラインごとに1シート、列は日付・始値・高値・安値・終値・出来高・調整後終値）に書き出します。Excelで修正して同じSetでImportすると、シート名＝ライン名として読み込まれます。同じ名前のラインがある場合は、「置き換え」か「日付ごとに追加・上書き」を選べます。<br>
 
-サヤ差チャートの移動平均・σ：チャートB上の「移動平均・σ」にチェックすると、サヤの移動平均（赤）と±1σ（緑）・±2σ（青）を表示します。「期間」は計算に使うデータ点の数（日足なら日数、初期値75）で、移動平均とσは、その期間の平均と標準偏差（母標準偏差）です。表示期間より前のデータも計算に使うので、ズームしても線の位置は変わりません。データが期間に足りない先頭部分は線が出ません。「σ位置」は最新のサヤが移動平均から何σ離れているかです。<br>
-タイミング灯：Setのタイトル横の2つ目の灯です。データ取込パネルの各ラインに「権利確定日」を入れ（毎年同じ日は月日4桁 0110,0410,0710,1010、特定の日は8桁 20261110、カンマ区切り）、チャートBの「権利日 X 日前」にXを入れます。サヤ差チャートの買い・売りどちらかの銘柄の次の権利確定日まで X日以内になると、緑から赤に変わります（日本時間の日付、権利確定日当日まで赤）。権利付き最終日で知らせたいときは、その日付を入力してください。入力が無いときは灰色です。<br>
+サヤ差チャートの移動平均・σ：サヤ差チャート上の「移動平均・σ」にチェックすると、サヤの移動平均（赤）と±1σ（緑）・±2σ（青）を表示します。「期間」は計算に使うデータ点の数（日足なら日数、初期値75）で、移動平均とσは、その期間の平均と標準偏差（母標準偏差）です。表示期間より前のデータも計算に使うので、ズームしても線の位置は変わりません。データが期間に足りない先頭部分は線が出ません。「σ位置」は最新のサヤが移動平均から何σ離れているかです。<br>
+タイミング灯：Setのタイトル横の2つ目の灯です。データ取込パネルの各ラインに「権利確定日」を入れ（毎年同じ日は月日4桁 0110,0410,0710,1010、特定の日は8桁 20261110、カンマ区切り）、サヤ差チャートの「権利付最終日の X 営業日前から赤」にXを入れます。権利付最終日は、権利確定日（休日なら直前の営業日）の2営業日前を自動で計算します（土日・祝日・12/31・1/2・1/3は休み）。サヤ差チャートの買い・売りどちらかの銘柄が、権利付最終日のX営業日前から権利付最終日までの間は赤、それ以外は緑です（日本時間の日付）。入力が無いときは灰色です。「⚙ 設定を隠す」ボタンで、サヤ差チャートの設定欄と凡例を隠せます。<br>
 新建・返済の目安：青線に到達した最初の点に、緑の「〇↓」（上側＝サヤ縮小狙い）または「〇↑」（下側＝サヤ拡大狙い）、返済の目安に灰色の「〇」を表示します。返済の目安は「移動平均線に戻る」か「反対側の青線に到達」を選べます。チェックボックスの横の数字は、表示期間内の新建の回数です。Setのタイトルは、サヤ差チャートの買い・売りの銘柄（「買い銘柄 vs 売り銘柄」）です。<br>
 サヤ差チャートの印：シミュレーションの各取引の建玉日に「建＋Trading Number」（例：建1）、返済日に「返＋Trading Number」（例：返2）を、サヤ差チャート上に同じ色（Trading Numberごと）で表示します。<br>
 履歴の自動追加：GitHub Actionsが平日の日本時間9:05〜16:05に1時間ごとに、history/銘柄コード.csv（例: history/1488.csv）の最終日以降の日付・始値・高値・安値・終値・出来高を追記・更新します（当日分は16:05の更新で確定値）。ページは開いたとき・1時間ごと・画面に戻ったときにこのファイルを読み、ラインの最終日より新しい日付の行を追加します（ラインの名前に4桁の銘柄コードが必要）。ページを開かなかった間の日付もまとめて追加されます。直近7日分の行は履歴ファイルの値で更新されますが、データ編集で手修正した行（日付の追加・上書き、値の変更）は保護され、上書きされません。履歴の値に戻したいときは、その行を削除してください。初回だけ、データ取込パネルの各ラインの「履歴CSV」で元データを書き出し、GitHubの history フォルダに銘柄コード.csv として置いてください。<br>
 データ編集：取込パネルの各ラインの「データ編集」を押すと、取り込んだデータを日付ごとに書き換えたり、日付と終値を追加／削除できます（チャート・シミュレーションに即反映）。</div></div></main>
 <script>
 const App={};
+const JPH={};
+function jpHol(y){if(JPH[y])return JPH[y];const p=n=>String(n).padStart(2,'0'),D=(m,d)=>`${y}-${p(m)}-${p(d)}`,iso=t=>new Date(t).toISOString().slice(0,10);
+  const nth=(m,n)=>{let c=0;for(let d=1;d<=31;d++){const dt=new Date(Date.UTC(y,m-1,d));if(dt.getUTCMonth()!==m-1)break;if(dt.getUTCDay()===1&&++c===n)return D(m,d)}};
+  const eq=a=>Math.floor(a+0.242194*(y-1980))-Math.floor((y-1980)/4);
+  const h=new Set([D(1,1),nth(1,2),D(2,11),D(2,23),D(3,eq(20.8431)),D(4,29),D(5,3),D(5,4),D(5,5),nth(7,3),D(8,11),nth(9,3),D(9,eq(23.2488)),nth(10,2),D(11,3),D(11,23)]);
+  [...h].forEach(s=>{const t=Date.parse(s+'T00:00:00Z');if(new Date(t).getUTCDay()===0){let n=t+864e5;while(h.has(iso(n)))n+=864e5;h.add(iso(n))}});
+  [...h].forEach(s=>{const t=Date.parse(s+'T00:00:00Z'),mid=iso(t+864e5);if(h.has(iso(t+2*864e5))&&!h.has(mid)&&new Date(t+864e5).getUTCDay()!==0)h.add(mid)});
+  return JPH[y]=h}
+function isBD(s){const t=Date.parse(s+'T00:00:00Z'),w=new Date(t).getUTCDay();if(w===0||w===6)return false;
+  const m=s.slice(5);if(m==='12-31'||m==='01-02'||m==='01-03')return false;return !jpHol(+s.slice(0,4)).has(s)}
+function bdAdd(s,n){let t=Date.parse(s+'T00:00:00Z'),st=n<0?-864e5:864e5,c=Math.abs(n);while(c>0){t+=st;if(isBD(new Date(t).toISOString().slice(0,10)))c--}return new Date(t).toISOString().slice(0,10)}
+function bdOnOrBefore(s){let t=Date.parse(s+'T00:00:00Z');while(!isBD(new Date(t).toISOString().slice(0,10)))t-=864e5;return new Date(t).toISOString().slice(0,10)}
+function kenriLast(r){return bdAdd(bdOnOrBefore(r),-2)}
+function bdBetween(a,b){let t=Date.parse(a+'T00:00:00Z'),e=Date.parse(b+'T00:00:00Z'),c=0;while(t<e){t+=864e5;if(isBD(new Date(t).toISOString().slice(0,10)))c++}return c}
 function makeSet(N,L,ST){
 const root=document.getElementById("set"+N);
 root.innerHTML=`
-  <section class="card sec"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>データ取込 <button onclick="App[${N}].pickFiles()">Import</button><button onclick="App[${N}].exportXlsx()">Export</button><input type="file" id="f" accept=".xlsx,.xls,.csv" multiple hidden></h2><div class="sb">
+  <section class="card sec" data-sec="imp"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>データ取込 <button onclick="App[${N}].pickFiles()">Import</button><button onclick="App[${N}].exportXlsx()">Export</button><input type="file" id="f" accept=".xlsx,.xls,.csv" multiple hidden></h2><div class="sb">
     <div id="panel">
       <div class="drop" id="drop">Excel / CSV をここにドロップ（複数可・1ファイル＝1ライン）</div>
       <div id="list"></div>
     </div>
   </div></section>
 
-  <section class="card sec"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button><span class="cn">チャート ${L[0]}（価格）</span>
+  <section class="card sec" data-sec="b"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button><span class="cn">サヤ差チャート</span><button type="button" id="cfgbtn" class="cfgbtn" onclick="App[${N}].cfgToggle()" title="設定欄と凡例を隠す／表示する">⚙ 設定を隠す</button></h2><div class="sb">
+    <div class="row" id="cfg">
+      買い <select id="buy"></select>
+      売り <select id="sell"></select>
+      <select id="mode"><option value="diff">差（買−売）</option><option value="ratio">比率（買÷売）</option></select>
+      <label class="row" style="gap:4px"><input type="checkbox" id="bandon" checked onchange="App[${N}].redrawB()">移動平均・帯</label>
+      <label class="row" style="gap:4px">期間 <input type="number" id="bandn" value="75" min="2" step="1" style="width:64px" onchange="App[${N}].redrawB()"></label>
+      <label class="row" style="gap:4px">幅 <select id="bandm" onchange="App[${N}].redrawB()"><option value="s">σ倍</option><option value="v">値</option><option value="p">％</option></select><input type="number" id="bandw" value="2" min="0" step="any" style="width:70px" onchange="App[${N}].redrawB()"></label>
+      <span style="flex-basis:100%;height:0"></span>
+      <label class="row" style="gap:4px"><input type="checkbox" id="sigon" checked onchange="App[${N}].redrawB()">新建・返済の目安</label>
+      <span class="row" style="gap:4px;padding:2px 8px;border:1px solid var(--bd);border-radius:999px" title="表示期間内の新建（〇↑・〇↓）の回数">新建 <b id="signum" style="min-width:14px;text-align:center">0</b> 回</span>
+      <select id="sigx" onchange="App[${N}].redrawB()" title="返済の目安"><option value="m">返済：移動平均線に戻る</option><option value="o">返済：反対側の青線に到達</option></select>
+      <label class="row" style="gap:4px" title="タイトル横のタイミング灯。権利付最終日のX営業日前から権利付最終日まで赤">タイミング灯：権利付最終日の <input type="number" id="recx" value="3" min="0" step="1" style="width:56px" onchange="App[${N}].redrawB()"> 営業日前から赤</label>
+    </div>
+    <div class="cv"><canvas id="cB"></canvas></div>
+    <canvas id="nav2"></canvas>
+    <div class="rb"><span id="rtxt2" class="hint"></span><span class="sp row">
+      <button data-r="1">1ヶ月</button><button data-r="3">3ヶ月</button><button data-r="6">6ヶ月</button><button data-r="12">1年</button><button data-r="36">3年</button><button data-r="0">全期間</button>
+      <button data-z="in">＋ 拡大</button><button data-z="out">－ 縮小</button></span></div>
+    <div id="stat" style="display:none"></div>
+  </div></section>
+
+  <section class="card sec" data-sec="a"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button><span class="cn">価格チャート</span>
       <span class="sp row">
         <select id="price"><option value="adj">調整後終値</option><option value="close">終値</option></select>
         <span class="row" id="pb"></span>
@@ -125,40 +165,22 @@ root.innerHTML=`
     <div class="rb"><span id="rtxt" class="hint"></span><span class="sp row">
       <button data-r="1">1ヶ月</button><button data-r="3">3ヶ月</button><button data-r="6">6ヶ月</button><button data-r="12">1年</button><button data-r="36">3年</button><button data-r="0">全期間</button>
       <button id="zi">＋ 拡大</button><button id="zo">－ 縮小</button></span></div>
-    <div class="hint">下のミニチャート（チャートBにも同じものがあります）で両端のハンドルをドラッグして期間を調整、中央をドラッグで移動、グラフ上のマウスホイールでもズームできます（チャートBにも同じ期間が適用されます）。</div>
+    <div class="hint">下のミニチャート（サヤ差チャートにも同じものがあります）で両端のハンドルをドラッグして期間を調整、中央をドラッグで移動、グラフ上のマウスホイールでもズームできます（サヤ差チャートにも同じ期間が適用されます）。</div>
   </div></section>
 
-  <section class="card sec"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>シミュレーション <button onclick="App[${N}].addTrade()">＋ 行追加</button>
+  <section class="card sec" data-sec="sim"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button>シミュレーション <button onclick="App[${N}].addTrade()">＋ 行追加</button>
       <label class="row" style="font-weight:400;gap:4px">率 <input type="number" id="mrate" value="34" min="0" step="any" style="width:70px" onchange="App[${N}].renderSim()">%</label>
       <span class="row" style="margin-left:auto;gap:12px;font-weight:400">
         <label class="row" style="gap:4px">Fix Cost <input type="number" id="fixv" value="0" min="0" step="any" style="width:80px" onchange="App[${N}].renderSim()"><select id="fixm" onchange="App[${N}].renderSim()"><option value="v">by Value</option><option value="p">by %</option></select></label>
         <label class="row" style="gap:4px">Duration Cost <input type="number" id="durv" value="0" min="0" step="any" style="width:80px" onchange="App[${N}].renderSim()"><select id="durm" onchange="App[${N}].renderSim()"><option value="v">by Value</option><option value="p">by %</option></select></label></span></h2><div class="sb">
-    <div style="overflow-x:auto"><table class="sim"><thead><tr><th>銘柄</th><th>Trading<br>Number</th><th>取引</th><th>期日</th><th>売買</th><th>数量</th><th>建玉金額差</th><th>金額</th><th>Spread</th><th>損益</th><th>総損益</th><th>総損益率<br>（年率）</th><th></th></tr></thead><tbody id="sim"></tbody></table></div>
+    <div class="simw" id="simw" style="overflow:auto"><table class="sim"><thead><tr><th>銘柄</th><th>Trading<br>Number</th><th>取引</th><th>期日</th><th>売買</th><th>数量</th><th>建玉金額差</th><th>金額</th><th>Spread</th><th>損益</th><th>総損益</th><th>総損益率<br>（年率）</th><th></th></tr></thead><tbody id="sim"></tbody></table></div>
     <div class="stat" id="simtot"></div>
   </div></section>
 
-  <section class="card sec"><h2 class="sh"><button class="tb" onclick="tg(this)">−</button><span class="cn">チャート ${L[1]}（サヤ差）</span></h2><div class="sb">
-    <div class="row">
-      買い <select id="buy"></select>
-      売り <select id="sell"></select>
-      <select id="mode"><option value="diff">差（買−売）</option><option value="ratio">比率（買÷売）</option></select>
-      <label class="row" style="gap:4px"><input type="checkbox" id="bandon" checked onchange="App[${N}].redrawB()">移動平均・帯</label>
-      <label class="row" style="gap:4px">期間 <input type="number" id="bandn" value="75" min="2" step="1" style="width:64px" onchange="App[${N}].redrawB()"></label>
-      <label class="row" style="gap:4px">幅 <select id="bandm" onchange="App[${N}].redrawB()"><option value="s">σ倍</option><option value="v">値</option><option value="p">％</option></select><input type="number" id="bandw" value="2" min="0" step="any" style="width:70px" onchange="App[${N}].redrawB()"></label>
-      <label class="row" style="gap:4px"><input type="checkbox" id="sigon" checked onchange="App[${N}].redrawB()">新建・返済の目安</label><label class="row" style="gap:4px" title="権利確定日のX日前から、Setのタイミング灯が赤になります">権利日 <input type="number" id="recx" value="3" min="0" step="1" style="width:56px" onchange="App[${N}].redrawB()">日前</label><b id="signum" title="表示期間内の新建（〇↑・〇↓）の回数" style="min-width:18px">0</b>
-      <select id="sigx" onchange="App[${N}].redrawB()" title="返済の目安"><option value="m">返済：移動平均線に戻る</option><option value="o">返済：反対側の青線に到達</option></select>
-    </div>
-    <div class="cv"><canvas id="cB"></canvas></div>
-    <canvas id="nav2"></canvas>
-    <div class="rb"><span id="rtxt2" class="hint"></span><span class="sp row">
-      <button data-r="1">1ヶ月</button><button data-r="3">3ヶ月</button><button data-r="6">6ヶ月</button><button data-r="12">1年</button><button data-r="36">3年</button><button data-r="0">全期間</button>
-      <button data-z="in">＋ 拡大</button><button data-z="out">－ 縮小</button></span></div>
-    <div class="stat" id="stat"></div>
-    <div class="hint">各ラインの調整値＝元値×倍率＋加減値（チャートA・Bの両方に反映）。<br>買い建て玉と売り建て玉の価格差。サヤが拡大すれば買い方有利、縮小すれば売り方有利。</div>
-  </div></section>
 `;
 
 const COLORS=['#1f6feb','#e5484d','#2da44e','#f5a524','#8e4ec6','#0ea5a5','#d6409f','#6b7684'];
+let hovD=null;
 let sets=[],period='D',cA,cB,pendingName=null,pendingTarget=null;
 const $=id=>root.querySelector('#'+id);
 const fi=$('f');
@@ -314,11 +336,21 @@ function opts(){return{responsive:true,maintainAspectRatio:false,animation:false
   scales:{x:{ticks:{color:css('--mut'),maxTicksLimit:10},grid:{color:css('--grid')}},y:{ticks:{color:css('--mut')},grid:{color:css('--grid')}}},
   elements:{point:{radius:0,hoverRadius:4},line:{borderWidth:1.8}}}}
 
+function hovIdx(ch){const L=ch&&ch.data&&ch.data.labels;if(!L||!L.length||hovD==null)return -1;let r=-1;for(let i=0;i<L.length;i++){if(String(L[i])<=hovD)r=i;else break}return r}
+function drawHov(ch){const h=hovIdx(ch);if(h<0)return;const g=ch.ctx,xs=ch.scales.x,ca=ch.chartArea;if(!xs||!ca)return;const x=xs.getPixelForValue(h);if(isNaN(x)||x<ca.left-1||x>ca.right+1)return;
+  g.save();g.strokeStyle='rgba(128,128,128,.55)';g.lineWidth=1;g.setLineDash([4,3]);g.beginPath();g.moveTo(x,ca.top);g.lineTo(x,ca.bottom);g.stroke();g.setLineDash([]);
+  const t=String(ch.data.labels[h]);g.font='bold 12px sans-serif';g.textAlign='center';g.textBaseline='middle';const w=g.measureText(t).width+14,px=Math.min(ca.right-w/2,Math.max(ca.left+w/2,x)),py=ca.top+13;
+  g.fillStyle=css('--card')||'#fff';g.strokeStyle=css('--bd')||'#999';g.beginPath();g.roundRect(px-w/2,py-10,w,20,5);g.fill();g.stroke();
+  g.fillStyle=css('--tx')||'#222';g.fillText(t,px,py+.5);g.restore()}
+function hovEvt(ch,args){const e=args.event,ca=ch.chartArea;if(!ca)return;let d=null;const L=ch.data.labels;
+  if(e.type!=='mouseout'&&e.x>=ca.left&&e.x<=ca.right&&e.y>=ca.top&&e.y<=ca.bottom&&L.length){const i=Math.min(L.length-1,Math.max(0,Math.round(ch.scales.x.getValueForPixel(e.x))));d=String(L[i])}
+  if(d!==hovD){hovD=d;args.changed=true;const o=ch===cA?cB:cA;if(o)o.draw()}}
+const hovPlug={id:'hovp',afterEvent:hovEvt,afterDatasetsDraw(ch){drawHov(ch)}};
 function drawA(){
   const vis=sets.filter(s=>s.show),maps=vis.map(series);
   const labels=fl([...new Set(maps.flatMap(m=>[...m.keys()]))]).sort();
   const data={labels,datasets:vis.map((s,i)=>({label:s.name,borderColor:s.color,backgroundColor:s.color,spanGaps:true,tension:0,data:labels.map(l=>maps[i].has(l)?maps[i].get(l):null)}))};
-  if(cA)cA.destroy();cA=new Chart($('cA'),{type:'line',data,options:opts()});
+  if(cA)cA.destroy();cA=new Chart($('cA'),{type:'line',data,options:opts(),plugins:[hovPlug]});
 }
 function drawB(){
   const b=sets.find(s=>String(s.id)===$('buy').value),sl=sets.find(s=>String(s.id)===$('sell').value);
@@ -357,7 +389,7 @@ function drawB(){
   const wrap=document.querySelector(`[data-n="${N}"]`),lp=wrap&&wrap.querySelector('.lamp');
   if(wrap){const tt=wrap.querySelector('.ttl'),nmv=b&&sl?`${b.name} vs ${sl.name}`:(b||sl?(b||sl).name:'銘柄未設定');tt.textContent=nmv;tt.title=nmv}
   if(lp){lp.classList.toggle('on',!!(lamp&&lamp.on));lp.title=lamp?lamp.tip:'サヤ差の移動平均ラインを計算できません'}
-  const o=opts();o.plugins.legend.display=true;o.plugins.legend.labels.padding=20;o.elements.point.hoverRadius=0;o.plugins.tooltip={enabled:false};
+  const o=opts();o.plugins.legend.display=!cfgHide;o.plugins.legend.labels.padding=20;o.elements.point.hoverRadius=0;o.plugins.tooltip={enabled:false};
   const showB=$('bandon').checked&&bands;
   const nm=`サヤ（${b?b.name:''} 買 / ${sl?sl.name:''} 売）`;
   const data={labels,datasets:[showB?{label:nm,data:vals,borderColor:css('--tx')||'#444',backgroundColor:'rgba(0,0,0,0)',fill:false,tension:0,borderWidth:2}
@@ -375,9 +407,7 @@ function drawB(){
       cnt[w+k]=(cnt[w+k]||0)+1;mk.push({k,y:vals[k],txt:w+m.tn,h:(Math.round(m.tn)*67+10)%360,up:w==='建',n:cnt[w+k]-1})}))}
   const sg=$('sigon').checked?sigv:[];
   const plug={id:'trm',
-    afterEvent(ch,args){const e=args.event,ca=ch.chartArea;if(!ca)return;let h=-1;
-      if(e.type!=='mouseout'&&e.x>=ca.left&&e.x<=ca.right&&e.y>=ca.top&&e.y<=ca.bottom&&labels.length){h=Math.min(labels.length-1,Math.max(0,Math.round(ch.scales.x.getValueForPixel(e.x))))}
-      if(ch.$hov!==h){ch.$hov=h;args.changed=true}},
+    afterEvent:hovEvt,
     afterDatasetsDraw(ch){const g=ch.ctx,xs=ch.scales.x,ys=ch.scales.y,ca=ch.chartArea;if(!xs||!ys)return;
     g.save();g.font='bold 11px sans-serif';g.textAlign='center';g.textBaseline='middle';
     sg.forEach(m=>{const x=xs.getPixelForValue(m.k),y=ys.getPixelForValue(m.y);if(isNaN(x)||isNaN(y)||x<ca.left-1||x>ca.right+1)return;
@@ -390,15 +420,12 @@ function drawB(){
       g.fillStyle=`hsl(${m.h} 65% 40%)`;g.beginPath();g.arc(x,y,3,0,7);g.fill();
       g.fillStyle=`hsl(${m.h} 80% 90%)`;g.beginPath();g.roundRect(x-w/2,by-hh/2,w,hh,4);g.fill();g.stroke();
       g.fillStyle=`hsl(${m.h} 70% 25%)`;g.fillText(m.txt,x,by+.5)});
-    const h=ch.$hov;if(h!=null&&h>=0&&labels[h]!=null){const x=xs.getPixelForValue(h);
-      g.strokeStyle='rgba(128,128,128,.55)';g.lineWidth=1;g.setLineDash([4,3]);g.beginPath();g.moveTo(x,ca.top);g.lineTo(x,ca.bottom);g.stroke();g.setLineDash([]);
-      const t=String(labels[h]);g.font='bold 12px sans-serif';const w=g.measureText(t).width+14,px=Math.min(ca.right-w/2,Math.max(ca.left+w/2,x)),py=ca.top+13;
-      g.fillStyle=css('--card')||'#fff';g.strokeStyle=css('--bd')||'#999';g.beginPath();g.roundRect(px-w/2,py-10,w,20,5);g.fill();g.stroke();
-      g.fillStyle=css('--tx')||'#222';g.fillText(t,px,py+.5)}
-    g.restore()}};
+    g.restore();drawHov(ch)}};
   if(cB)cB.destroy();cB=new Chart($('cB'),{type:'line',data,options:o,plugins:[plug]});
 }
-let trades=[],trMarks=[],trMarksJs='';const f10iso=t=>new Date(t).toISOString().slice(0,10);
+let trades=[],trMarks=[],trMarksJs='',cfgHide=false;
+function applyCfg(){$('cfg').style.display=cfgHide?'none':'';$('cfgbtn').textContent=cfgHide?'⚙ 設定を表示':'⚙ 設定を隠す'}
+function cfgToggle(){cfgHide=!cfgHide;applyCfg();drawB();saveSoon()}const f10iso=t=>new Date(t).toISOString().slice(0,10);
 function addTrade(){trades.push({sid:null,od:'',side:'売',oq:1,cd:'',cq:'',tn:1,sp:1});renderSim()}
 function delTrade(i){trades.splice(i,1);renderSim()}
 function setT(i,k,v){const t=trades[i];
@@ -458,6 +485,7 @@ function renderSim(){
   const days=dmin&&dmax?Math.round((ts(dmax)-ts(dmin))/DAY):0,ann=r!=null&&days>0?r/days*365:null;
   $('sim').innerHTML=html.replace('@@TOT@@',n?`<td rowspan="${rs}" class="${cl}">${fm(tot)}</td><td rowspan="${rs}" class="${cl}">${ann!=null?(ann*100).toFixed(1)+'%':'-'}<span class="px">${r!=null?(r*100).toFixed(2)+'%':'-'} ÷ ${days}日 × 365</span></td>`:`<td rowspan="${rs}">-</td><td rowspan="${rs}">-</td>`);
   $('simtot').innerHTML=n?`<span>サイクル数 <b>${Object.keys(grp).length}</b></span><span>分母（最大必要資金：Trading Number ${maxTn}） <b>${fm(den)}</b></span><span>費用合計 <b>${fm(totCost)}</b></span><span>使用日数 <b>${days}日</b></span><span>計算済 <b>${n}</b> 件</span>`:'';
+  fitSim();
   {const mm=[];trades.forEach(t=>{const lc=leg(t,'c'),od=d8(t.od),cd=lc.d8;if(od||cd)mm.push({tn:t.tn===''||t.tn==null?1:t.tn,od,cd})});
     const js=JSON.stringify(mm);if(js!==trMarksJs){trMarksJs=js;trMarks=mm;drawB()}}
   const wrap=document.querySelector(`[data-n="${N}"]`);
@@ -536,10 +564,10 @@ function sample(){
 }
 refresh();
 
-function getState(){return{sets,period,price:$('price').value,buy:$('buy').value,sell:$('sell').value,mode:$('mode').value,mrate:$('mrate').value,bandon:$('bandon').checked,bandn:$('bandn').value,bandm:$('bandm').value,bandw:$('bandw').value,sigon:$('sigon').checked,sigx:$('sigx').value,recx:$('recx').value,fixv:$('fixv').value,fixm:$('fixm').value,durv:$('durv').value,durm:$('durm').value,trades,rng}}
+function getState(){return{sets,period,price:$('price').value,buy:$('buy').value,sell:$('sell').value,mode:$('mode').value,mrate:$('mrate').value,bandon:$('bandon').checked,bandn:$('bandn').value,bandm:$('bandm').value,bandw:$('bandw').value,sigon:$('sigon').checked,sigx:$('sigx').value,recx:$('recx').value,cfgHide,fixv:$('fixv').value,fixm:$('fixm').value,durv:$('durv').value,durm:$('durm').value,trades,rng}}
 function setState(st){if(!st)return;
   sets=st.sets||[];period=st.period||'D';trades=(st.trades||[]).map(t=>Object.assign({tn:1,sp:st.spread!=null?parseFloat(st.spread):1},t));rng=st.rng||null;
-  $('price').value=st.price||'adj';$('mode').value=st.mode||'diff';if(st.mrate!=null)$('mrate').value=st.mrate;if(st.bandon!=null)$('bandon').checked=!!st.bandon;if(st.bandn)$('bandn').value=st.bandn;if(st.bandm)$('bandm').value=st.bandm;if(st.bandw!=null&&st.bandw!=='')$('bandw').value=st.bandw;if(st.sigon!=null)$('sigon').checked=!!st.sigon;if(st.sigx)$('sigx').value=st.sigx;if(st.recx!=null&&st.recx!=='')$('recx').value=st.recx;
+  $('price').value=st.price||'adj';$('mode').value=st.mode||'diff';if(st.mrate!=null)$('mrate').value=st.mrate;if(st.bandon!=null)$('bandon').checked=!!st.bandon;if(st.bandn)$('bandn').value=st.bandn;if(st.bandm)$('bandm').value=st.bandm;if(st.bandw!=null&&st.bandw!=='')$('bandw').value=st.bandw;if(st.sigon!=null)$('sigon').checked=!!st.sigon;if(st.sigx)$('sigx').value=st.sigx;if(st.recx!=null&&st.recx!=='')$('recx').value=st.recx;cfgHide=!!st.cfgHide;applyCfg();
   [['fixv','fixv'],['fixm','fixm'],['durv','durv'],['durm','durm']].forEach(([k,id])=>{if(st[k]!=null)$(id).value=st[k]});
   [...$('pb').children].forEach(b=>b.classList.toggle('on',b.dataset.k===period));
   list();if(st.buy)$('buy').value=st.buy;if(st.sell)$('sell').value=st.sell;refresh()}
@@ -566,13 +594,16 @@ function recDates(str,today){const out=[],y=+today.slice(0,4);
 function recLamp(){const wrap=document.querySelector(`[data-n="${N}"]`),lp=wrap&&wrap.querySelector('.lamp2');if(!lp)return;
   const b=sets.find(s=>String(s.id)===$('buy').value),sl=sets.find(s=>String(s.id)===$('sell').value),ls=[...new Set([b,sl].filter(Boolean))];
   const today=new Date(Date.now()+9*36e5).toISOString().slice(0,10),X=Math.max(0,parseInt($('recx').value)||0),tip=[];let any=false,warn=false;
-  ls.forEach(l=>{const ds=recDates(l.rec,today).map(d=>[d,Math.round((Date.parse(d)-Date.parse(today))/864e5)]).filter(a=>a[1]>=0).sort((a,c)=>a[1]-c[1]);
-    if(!ds.length){tip.push(`${l.name}: 権利確定日が未入力`);return}
-    any=true;const [d,n]=ds[0];if(n<=X)warn=true;tip.push(`${l.name}: 次回 ${d}（あと${n}日）`)});
+  ls.forEach(l=>{const c=recDates(l.rec,today).map(r=>({r,k:kenriLast(r)})).filter(a=>a.k>=today).sort((a,c)=>a.k<c.k?-1:1);
+    if(!c.length){tip.push(`${l.name}: 権利確定日が未入力`);return}
+    any=true;const {r,k}=c[0],st=bdAdd(k,-X),n=bdBetween(today,k);if(today>=st)warn=true;
+    tip.push(`${l.name}: 権利確定日 ${r}／権利付最終日 ${k}（あと${n}営業日、${st}から赤）`)});
   lp.classList.toggle('ok',any&&!warn);lp.classList.toggle('warn',any&&warn);
-  lp.title=`タイミング灯（権利確定日の${X}日前から赤）\n`+(tip.join('\n')||'銘柄がありません')}
+  lp.title=`タイミング灯（権利付最終日の${X}営業日前から赤）\n`+(tip.join('\n')||'銘柄がありません')}
+function fitSim(){const w=$('simw'),r=$('sim').rows;if(!w)return;if(!r||r.length<=12||!w.offsetHeight){w.style.maxHeight='';return}
+  w.style.maxHeight='none';const t=w.getBoundingClientRect().top,b=r[11].getBoundingClientRect().bottom;w.style.maxHeight=Math.ceil(b-t+2)+'px'}
 function redrawB(){drawB();saveSoon()}
-return {recLamp,redrawB,lineCodes,mergeHist,histCsv,edToggle,edSet,edAdd,edDel,edMore,getState,addLine,pickFiles,exportXlsx,sample,appendTo,upd,del,adj,addTrade,delTrade,setT,renderSim,refresh};}
+return {fitSim,cfgToggle,recLamp,redrawB,lineCodes,mergeHist,histCsv,edToggle,edSet,edAdd,edDel,edMore,getState,addLine,pickFiles,exportXlsx,sample,appendTo,upd,del,adj,addTrade,delTrade,setT,renderSim,refresh};}
 
 let ready=false,tmr=0,FEED={},FEEDAT='',nextN=1;
 const $$=id=>document.getElementById(id);
@@ -618,18 +649,37 @@ async function dbPut(v){try{const d=await idb();d.transaction('kv','readwrite').
 function colName(i){let r='';i++;while(i>0){const m=(i-1)%26;r=String.fromCharCode(65+m)+r;i=Math.floor((i-1)/26)}return r}
 const letters=k=>[colName(2*k),colName(2*k+1)];
 function collect(){return{v:2,feed:FEED,feedAt:FEEDAT,feedUrl:$$('feedUrl').value,helpClosed:$$('help').classList.contains('closed'),
-  list:[...document.querySelectorAll('.outer')].map(w=>({n:+w.dataset.n,state:App[w.dataset.n].getState(),note:w.querySelector('.note').value,closed:[w,...w.querySelectorAll('.sec')].map(x=>x.classList.contains('closed'))}))}}
+  list:[...document.querySelectorAll('.outer')].map(w=>({n:+w.dataset.n,state:App[w.dataset.n].getState(),note:w.querySelector('.note').value,closed:[w,...['imp','a','sim','b'].map(k=>w.querySelector(`.sec[data-sec="${k}"]`))].map(x=>!!x&&x.classList.contains('closed'))}))}}
 function flush(){if(ready)dbPut(collect())}
 function saveSoon(){if(!ready)return;clearTimeout(tmr);tmr=setTimeout(flush,500);cloudSoon()}
 async function resetAll(){if(confirm('この端末に保存されたデータを消去して初期化しますか？\n（クラウドのデータは消えません。ログインすると、クラウドの内容が再び読み込まれます）')){ready=false;await dbPut(null);await kvPut('meta',null);location.reload()}}
 function tg(b){const w=b.closest('.sec'),c=w.classList.toggle('closed');b.textContent=c?'+':'−';const nw=b.closest('[data-n]');if(!c&&nw){const a=App[nw.dataset.n];a&&a.refresh()}saveSoon()}
-function renumber(){document.querySelectorAll('.outer').forEach((w,k)=>{const L=letters(k),c=w.querySelectorAll('.cn');w.querySelector('.snum').textContent='Set '+(k+1);
-  if(c[0])c[0].textContent='チャート '+L[0]+'（価格）';if(c[1])c[1].textContent='チャート '+L[1]+'（サヤ差）'})}
+(function(){const holder=document.getElementById('sets');let d=null;
+  const tm=e=>{if(d&&d.on)e.preventDefault()};document.addEventListener('touchmove',tm,{passive:false});
+  function place(){if(!d||!d.on)return;const el=d.el;el.style.transform='none';const nat=el.getBoundingClientRect().top;el.style.transform=`translateY(${d.y-d.grab-nat}px)`}
+  function order(){const el=d.el,sibs=[...holder.children].filter(c=>c.classList.contains('outer')&&c!==el);let ref=null;
+    for(const s of sibs){const r=s.getBoundingClientRect();if(d.y<r.top+r.height/2){ref=s;break}}
+    if(ref){if(el.nextElementSibling!==ref){holder.insertBefore(el,ref);d.moved=true}}else if(holder.lastElementChild!==el){holder.appendChild(el);d.moved=true}}
+  function tick(){if(!d||!d.on)return;if(d.y<70)window.scrollBy(0,-16);else if(d.y>innerHeight-70)window.scrollBy(0,16);order();place();d.raf=requestAnimationFrame(tick)}
+  function on(){if(!d||d.on)return;d.on=true;clearTimeout(d.timer);const r=d.el.getBoundingClientRect();d.grab=d.y0-r.top;
+    try{d.sh.setPointerCapture(d.id)}catch(e){}d.el.classList.add('dragging');document.body.classList.add('dragb');if(navigator.vibrate)navigator.vibrate(25);tick()}
+  function end(){if(!d)return;clearTimeout(d.timer);cancelAnimationFrame(d.raf);const x=d;d=null;
+    if(x.on){x.el.classList.remove('dragging');x.el.style.transform='';document.body.classList.remove('dragb');try{x.sh.releasePointerCapture(x.id)}catch(e){}
+      if(x.moved){renumber();saveSoon()}}}
+  holder.addEventListener('pointerdown',e=>{if(e.button>0)return;const sh=e.target.closest('.outer>.sh');if(!sh||e.target.closest('input,button,select,textarea,a,label'))return;
+    d={el:sh.parentElement,sh,id:e.pointerId,x0:e.clientX,y0:e.clientY,y:e.clientY,touch:e.pointerType!=='mouse',on:false,moved:false};
+    if(d.touch)d.timer=setTimeout(on,450)});
+  document.addEventListener('pointermove',e=>{if(!d||e.pointerId!==d.id)return;d.y=e.clientY;
+    if(!d.on){const dist=Math.hypot(e.clientX-d.x0,e.clientY-d.y0);if(d.touch){if(dist>10)end()}else if(dist>6)on()}});
+  ['pointerup','pointercancel'].forEach(t=>document.addEventListener(t,e=>{if(d&&e.pointerId===d.id)end()}));
+  holder.addEventListener('contextmenu',e=>{if(d&&d.touch)e.preventDefault()});
+  addEventListener('resize',()=>Object.values(App).forEach(a=>a.fitSim&&a.fitSim()))})();
+function renumber(){document.querySelectorAll('.outer').forEach((w,k)=>{const L=letters(k),c=w.querySelectorAll('.cn');w.querySelector('.snum').textContent='Set '+(k+1)})}
 function mkSet(n,st,note,closed){const k=document.querySelectorAll('.outer').length;
-  document.getElementById('sets').insertAdjacentHTML('beforeend',`<div class="outer sec" data-n="${n}"><div class="sh"><button class="tb" onclick="tg(this)">−</button><b class="snum">Set ${k+1}</b><span class="lamp" title=""></span><span class="lamp lamp2" title=""></span><span class="ttl"></span><span class="hrate"></span><input type="text" class="note" placeholder="メモ（自由記入）" oninput="saveSoon()"><button class="tb dl" title="このSetを削除" onclick="delSet(this)">✕</button></div><div class="sb"><div class="inner" id="set${n}"></div></div></div>`);
+  document.getElementById('sets').insertAdjacentHTML('beforeend',`<div class="outer sec" data-n="${n}"><div class="sh"><button class="tb" onclick="tg(this)">−</button><b class="snum" title="ドラッグ（スマホは長押し）で並べ替え">Set ${k+1}</b><span class="lamp" title=""></span><span class="lamp lamp2" title=""></span><span class="ttl"></span><span class="hrate"></span><input type="text" class="note" placeholder="メモ（自由記入）" oninput="saveSoon()"><button class="tb dl" title="このSetを削除" onclick="delSet(this)">✕</button></div><div class="sb"><div class="inner" id="set${n}"></div></div></div>`);
   const w=document.querySelector(`.outer[data-n="${n}"]`);w.querySelector('.note').value=note||'';
   App[n]=makeSet(n,letters(k),st);
-  [w,...w.querySelectorAll('.sec')].forEach((x,j)=>{if(closed&&closed[j]){x.classList.add('closed');const b=x.querySelector(':scope>.sh>.tb');if(b)b.textContent='+'}})}
+  [w,...['imp','a','sim','b'].map(k=>w.querySelector(`.sec[data-sec="${k}"]`))].forEach((x,j)=>{if(x&&closed&&closed[j]){x.classList.add('closed');const b=x.querySelector(':scope>.sh>.tb');if(b)b.textContent='+'}})}
 function addSet(){mkSet(nextN++,null,'',null);renumber();saveSoon()}
 function delSet(b){const w=b.closest('.outer');if(!confirm('このSetを削除しますか？（取り込んだデータも消えます）'))return;delete App[w.dataset.n];w.remove();renumber();saveSoon()}
 /* ===== クラウド同期 (Supabase) ===== */
